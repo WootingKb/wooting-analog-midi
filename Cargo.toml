@@ -1,0 +1,16 @@
+[package]
+name = "wooting-analog-midi"
+version = "0.1.0"
+authors = ["simon-wh <simon.whyte.lb@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+midir = "0.6.1"
+#wooting-analog-wrapper = { path="../Wooting/wooting-analog-sdk/wooting-analog-wrapper" }
+wooting-analog-wrapper = { git = "https://github.com/WootingKb/wooting-analog-sdk", branch = "feature/rust-wrapper" }
+ctrlc = { version = "3", features = ["termination"] }
+log = "0.4.8"
+env_logger = "0.7.1"
+lazy_static = "1.4.0"
