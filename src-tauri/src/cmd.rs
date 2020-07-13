@@ -1,4 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AppSettings {
+  pub keymapping: HashMap<u8, u8>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct RequestBody {
@@ -18,5 +24,13 @@ pub enum Cmd {
     body: RequestBody,
     callback: String,
     error: String,
+  },
+
+  RequestConfig {
+    callback: String,
+    error: String,
+  },
+  UpdateConfig {
+    config: String,
   },
 }

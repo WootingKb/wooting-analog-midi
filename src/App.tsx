@@ -174,9 +174,13 @@ enum HIDCodes {
   RightMeta = 0xe7, //META_RIGHT
 }
 
+interface AppSettings {
+  keymapping: { [key: number]: number };
+}
+
 interface MidiEntry {
   key: HIDCodes;
-  note: number;
+  note?: number;
   value: number;
 }
 
@@ -196,6 +200,31 @@ listen<string>("midi-update", function (res) {
 
 function App() {
   const [midiState, setMidiState] = useState<MidiUpdate | undefined>();
+  const [appSettings, setAppSettings] = useState<AppSettings | undefined>();
+
+  function updateSettings(settings: AppSettings) {
+    setAppSettings(settings);
+    tauri.invoke({ cmd: "updateConfig", config: JSON.stringify(settings) });
+  }
+
+  useEffect(() => {
+    if (!appSettings) {
+      tauri
+        .promisified<string>({
+          cmd: "requestConfig",
+        })
+        .then(function (response) {
+          console.log(response);
+          const settings = JSON.parse(response) as AppSettings;
+          console.log(settings);
+          setAppSettings(settings);
+
+          // settings.keymapping[HIDCodes.ArrowUp] = 20;
+          // console.log(settings);
+          // updateSettings(settings);
+        });
+    }
+  }, []);
 
   useEffect(() => {
     updateCallback = (update: MidiUpdate) => {
@@ -210,19 +239,27 @@ function App() {
       event: "tauri-click",
       payload: "this payload is optional because we used Option in Rust",
     });
+
+    // if (appSettings) {
+    //   appSettings.keymapping[HIDCodes.X] = 41;
+    //   console.log(appSettings);
+    //   updateSettings(appSettings);
+    // }
   }
 
-  const midiData = midiState?.data?.sort((a, b) => a.note - b.note) ?? [];
-  const firstNote = midiData[0]?.note ?? 51;
-  const lastNote = midiData[midiData.length - 1]?.note ?? 52;
+  const midiData = midiState?.data?.sort((a, b) => a.key - b.key) ?? [];
+  const firstNote = 21;
+  const lastNote = 127;
   // const keyboardShortcuts = KeyboardShortcuts.create({
   //   firstNote: firstNote,
   //   lastNote: lastNote,
   //   keyboardConfig: KeyboardShortcuts.HOME_ROW,
   // });
-  const keyboardShortcuts = midiData.map((data) => {
-    return { key: HIDCodes[data.key], midiNumber: data.note };
-  });
+  const keyboardShortcuts = midiData
+    .filter((data) => data.note != null)
+    .map((data) => {
+      return { key: HIDCodes[data.key], midiNumber: data.note };
+    });
   // console.log("Render");
   return (
     <div className="App">
@@ -231,7 +268,7 @@ function App() {
         <button onClick={onClick}>Log</button>
         {midiState && (
           <Piano
-            noteRange={{ first: firstNote, last: lastNote + 1 }}
+            noteRange={{ first: firstNote, last: lastNote }}
             playNote={(midiNumber: number) => {
               // Play a given note - see notes below
             }}
@@ -240,14 +277,14 @@ function App() {
             }}
             activeNotes={midiData
               .filter((data) => {
-                return data.value >= 0.1;
+                return data.note && data.value >= 0.1;
               })
               .map((data) => data.note)}
-            width={300}
+            width={1000}
             keyboardShortcuts={keyboardShortcuts}
           />
         )}
-        {midiState && (
+        {/* {midiState && (
           <div
             style={{
               display: "flex",
@@ -271,7 +308,7 @@ function App() {
                 );
               })}
           </div>
-        )}
+        )} */}
       </header>
     </div>
   );

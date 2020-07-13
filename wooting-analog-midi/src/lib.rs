@@ -82,7 +82,7 @@ impl NoteSink for MidiOutputConnection {
 
 pub struct Note {
     pub current_value: f32,
-    pub note_id: NoteID,
+    pub note_id: Option<NoteID>,
     // associatedKey: HIDCodes,
     pressed: bool,
     velocity: f32,
@@ -90,7 +90,7 @@ pub struct Note {
 }
 
 impl Note {
-    pub fn new(key: HIDCodes, note: NoteID) -> Note {
+    pub fn new(key: HIDCodes, note: Option<NoteID>) -> Note {
         Note {
             // associatedKey: key,
             note_id: note,
@@ -99,6 +99,17 @@ impl Note {
             velocity: 0.0,
             pressure: 0.0,
         }
+    }
+
+    fn update_note(&mut self, note: Option<NoteID>, sink: &mut impl NoteSink) {
+        if let Some(current_note) = self.note_id {
+            if self.pressed {
+                sink.note_off(current_note, self.velocity);
+                self.pressed = false;
+            }
+        }
+
+        self.note_id = note;
     }
 
     fn update_current_value(&mut self, new_value: f32, sink: &mut impl NoteSink) {
@@ -112,31 +123,40 @@ impl Note {
         self.current_value = new_value;
         self.pressure = new_value;
 
-        if new_value > THRESHOLD {
-            // 'Pressed'
-            if !self.pressed {
-                sink.note_on(self.note_id, self.velocity);
-                self.pressed = true;
-            } else {
-                // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
-                if AFTERTOUCH {
-                    sink.polyphonic_aftertouch(self.note_id, self.pressure);
+        if let Some(note_id) = self.note_id {
+            if new_value > THRESHOLD {
+                // 'Pressed'
+                if !self.pressed {
+                    sink.note_on(note_id, self.velocity);
+                    self.pressed = true;
+                } else {
+                    // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
+                    if AFTERTOUCH {
+                        sink.polyphonic_aftertouch(note_id, self.pressure);
+                    }
                 }
-            }
-        } else {
-            // 'Not Pressed'
-            if self.pressed {
-                sink.note_off(self.note_id, self.velocity);
-                self.pressed = false;
+            } else {
+                // 'Not Pressed'
+                if self.pressed {
+                    sink.note_off(note_id, self.velocity);
+                    self.pressed = false;
+                }
             }
         }
     }
 }
 
 fn generate_note_mapping(keymapping: &HashMap<HIDCodes, u8>) -> HashMap<HIDCodes, Note> {
-    keymapping
-        .iter()
-        .map(|(key, note)| (key.clone(), Note::new(key.clone(), *note)))
+    // keymapping
+    //     .iter()
+    //     .map(|(key, note)| (key.clone(), Note::new(key.clone(), *note)))
+    //     .collect()
+    (0..255)
+        .step_by(1)
+        .map(|code| HIDCodes::from_u8((code as u8)))
+        .filter(|code| code.is_some())
+        .map(|code| code.unwrap())
+        .map(|code| (code.clone(), Note::new(code, None)))
         .collect()
 }
 
@@ -153,8 +173,27 @@ impl MidiService {
     pub fn new() -> Self {
         MidiService {
             connection: None,
-            notes: generate_note_mapping(&*KEYMAPPING),
+            notes: generate_note_mapping(&KEYMAPPING),
         }
+    }
+
+    pub fn update_mapping(
+        &mut self,
+        mapping: &HashMap<HIDCodes, NoteID>,
+    ) -> Result<(), Box<dyn Error>> {
+        // self.notes =
+        for (key, note) in self.notes.iter_mut() {
+            if let Some(note_id) = mapping.get(&key) {
+                note.update_note(
+                    Some(*note_id),
+                    self.connection.as_mut().ok_or("No connection!")?,
+                );
+            } else {
+                note.update_note(None, self.connection.as_mut().ok_or("No connection!")?)
+            }
+        }
+
+        Ok(())
     }
 
     pub fn init(&mut self) -> Result<(), Box<dyn Error>> {
