@@ -1,0 +1,30 @@
+[package]
+name = "WootingMidi"
+version = "0.1.0"
+description = "A Tauri App"
+authors = [ "you" ]
+license = ""
+repository = ""
+default-run = "WootingMidi"
+edition = "2018"
+build = "src/build.rs"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
+tauri = { version = "0.7", features = [ "all-api", "edge" ] }
+log = "0.4.8"
+env_logger = "0.7.1"
+wooting-analog-midi = { path = "../wooting-analog-midi" }
+lazy_static = "1.4.0"
+
+[target."cfg(windows)".build-dependencies]
+winres = "0.1"
+
+[features]
+embedded-server = [ "tauri/embedded-server" ]
+no-server = [ "tauri/no-server" ]
+
+[[bin]]
+name = "WootingMidi"
+path = "src/main.rs"

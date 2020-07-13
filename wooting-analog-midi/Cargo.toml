@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 midir = "0.6.1"
-#wooting-analog-wrapper = { path="../Wooting/wooting-analog-sdk/wooting-analog-wrapper" }
+#wooting-analog-wrapper = { path="../../Wooting/wooting-analog-sdk/wooting-analog-wrapper" }
 wooting-analog-wrapper = { git = "https://github.com/WootingKb/wooting-analog-sdk", branch = "feature/rust-wrapper" }
-ctrlc = { version = "3", features = ["termination"] }
+# ctrlc = { version = "3", features = ["termination"] }
 log = "0.4.8"
-env_logger = "0.7.1"
 lazy_static = "1.4.0"
+# iced = "0.1"
