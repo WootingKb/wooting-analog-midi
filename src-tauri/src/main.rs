@@ -116,6 +116,7 @@ fn get_proper_mapping(mapping: &HashMap<u8, u8>) -> HashMap<HIDCodes, u8> {
     .map(|(key, note)| (HIDCodes::from_u8(*key).unwrap(), *note))
     .collect()
 }
+pub const MIDI_UPDATE_RATE: u32 = 15; //Hz
 
 fn main() {
   if let Err(e) = env_logger::try_init() {
@@ -152,6 +153,7 @@ fn main() {
             Err(e) => error!("Error: {}", e),
           }
           // while running_inner.load(Ordering::SeqCst) {
+          let mut iter_count: u32 = 0;
           loop {
             if *config_changed_inner1.read().unwrap() {
               *config_changed_inner1.write().unwrap() = false;
@@ -164,27 +166,35 @@ fn main() {
               Ok(_) => {}
               Err(e) => error!("Error: {}", e),
             }
-
-            let notes: &HashMap<HIDCodes, Note> = &MIDISERVICE.read().unwrap().notes;
-            let event_message = MidiUpdate {
-              data: notes
-                .iter()
-                .map(|(key, note)| MidiEntry {
-                  key: key.clone() as u8,
-                  note: note.note_id,
-                  value: note.current_value,
-                })
-                .collect(),
-            };
-            tauri::event::emit(
-              &handle,
-              String::from("midi-update"),
-              Some(serde_json::to_string(&event_message).unwrap()),
-            );
+            if (iter_count % (REFRESH_RATE as u32 / MIDI_UPDATE_RATE)) == 0 {
+              let notes: &HashMap<HIDCodes, Note> = &MIDISERVICE.read().unwrap().notes;
+              let event_message = MidiUpdate {
+                data: notes
+                  .iter()
+                  .filter_map(|(key, note)| {
+                    if note.note_id.is_some() || note.current_value > 0.0 {
+                      Some(MidiEntry {
+                        key: key.clone() as u8,
+                        note: note.note_id,
+                        value: note.current_value,
+                      })
+                    } else {
+                      None
+                    }
+                  })
+                  .collect(),
+              };
+              tauri::event::emit(
+                &handle,
+                String::from("midi-update"),
+                Some(serde_json::to_string(&event_message).unwrap()),
+              );
+            }
             // let reply = Reply {
             //   data: "something else".to_string(),
             // };
 
+            iter_count += 1;
             sleep(Duration::from_secs_f32(1.0 / REFRESH_RATE))
           }
         });
