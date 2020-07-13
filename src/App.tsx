@@ -111,7 +111,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <button onClick={onClick}>Log</button>
+        {/* <button onClick={onClick}>Log</button> */}
         <PianoHolder
           onMouseDown={() => {
             setIsMousePressed(true);
@@ -121,7 +121,10 @@ function App() {
           }}
         >
           {midiState && (
-            <PianoDisplay midiData={midiData} changeMidiMap={setKeyMapping} />
+            <PianoDisplay
+              midiData={midiData.filter((data) => data.note)}
+              changeMidiMap={setKeyMapping}
+            />
           )}
         </PianoHolder>
         {keyMapping && isMousePressed && (

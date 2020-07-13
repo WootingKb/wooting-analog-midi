@@ -80,10 +80,11 @@ impl NoteSink for MidiOutputConnection {
     }
 }
 
+#[derive(Debug)]
 pub struct Note {
     pub current_value: f32,
     pub note_id: Option<NoteID>,
-    // associatedKey: HIDCodes,
+    associatedKey: HIDCodes,
     pressed: bool,
     velocity: f32,
     pressure: f32,
@@ -92,7 +93,7 @@ pub struct Note {
 impl Note {
     pub fn new(key: HIDCodes, note: Option<NoteID>) -> Note {
         Note {
-            // associatedKey: key,
+            associatedKey: key,
             note_id: note,
             current_value: 0.0,
             pressed: false,
@@ -101,11 +102,13 @@ impl Note {
         }
     }
 
-    fn update_note(&mut self, note: Option<NoteID>, sink: &mut impl NoteSink) {
-        if let Some(current_note) = self.note_id {
-            if self.pressed {
-                sink.note_off(current_note, self.velocity);
-                self.pressed = false;
+    fn update_note(&mut self, note: Option<NoteID>, sink: Option<&mut impl NoteSink>) {
+        if let Some(sink) = sink {
+            if let Some(current_note) = self.note_id {
+                if self.pressed {
+                    sink.note_off(current_note, self.velocity);
+                    self.pressed = false;
+                }
             }
         }
 
@@ -153,7 +156,7 @@ fn generate_note_mapping(keymapping: &HashMap<HIDCodes, u8>) -> HashMap<HIDCodes
     //     .collect()
     (0..255)
         .step_by(1)
-        .map(|code| HIDCodes::from_u8((code as u8)))
+        .map(|code| HIDCodes::from_u8(code as u8))
         .filter(|code| code.is_some())
         .map(|code| code.unwrap())
         .map(|code| (code.clone(), Note::new(code, None)))
@@ -184,12 +187,9 @@ impl MidiService {
         // self.notes =
         for (key, note) in self.notes.iter_mut() {
             if let Some(note_id) = mapping.get(&key) {
-                note.update_note(
-                    Some(*note_id),
-                    self.connection.as_mut().ok_or("No connection!")?,
-                );
+                note.update_note(Some(*note_id), self.connection.as_mut());
             } else {
-                note.update_note(None, self.connection.as_mut().ok_or("No connection!")?)
+                note.update_note(None, self.connection.as_mut())
             }
         }
 
@@ -242,7 +242,7 @@ impl MidiService {
                 out_ports.get(0).ok_or("invalid output port selected")?
             }
         };
-        info!("\nOpening connection");
+        info!("Opening connection");
         self.connection = Some(midi_out.connect(out_port, "midir-test")?);
 
         Ok(())
