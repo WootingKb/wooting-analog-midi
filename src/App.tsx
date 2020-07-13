@@ -66,7 +66,7 @@ function App() {
           // updateSettings(settings);
         });
     }
-  }, []);
+  }, [appSettings]);
 
   useEffect(() => {
     updateCallback = (update: MidiUpdate) => {
@@ -97,10 +97,18 @@ function App() {
   const [isMousePressed, setIsMousePressed] = useState(false);
 
   useEffect(() => {
-    if (keyMapping && isMousePressed) {
+    if (appSettings && keyMapping && isMousePressed) {
       const midiEntry = midiData.find((data) => data.value > 0.1);
       if (midiEntry) {
         console.log(`now we can map ${JSON.stringify(midiEntry)}`);
+
+        updateSettings({
+          ...appSettings,
+          keymapping: {
+            ...appSettings.keymapping,
+            [midiEntry.key]: keyMapping,
+          },
+        });
 
         setKeyMapping(null);
         setIsMousePressed(false);
