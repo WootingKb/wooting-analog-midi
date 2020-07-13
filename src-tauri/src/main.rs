@@ -38,7 +38,7 @@ lazy_static! {
 }
 
 fn main() {
-  env_logger::init();
+  env_logger::try_init();
   // let running = Arc::new(AtomicBool::new(true));
 
   // let running_inner = running.clone();
