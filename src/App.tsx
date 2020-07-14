@@ -99,24 +99,42 @@ function App() {
   const [keyMapping, setKeyMapping] = useState<number | null>(null);
 
   // Track if the mouse is pressed so we can avoid playNote triggering with keys
-  const [isMousePressed, setIsMousePressed] = useState(false);
+  const [isMousePressed, setIsMousePressed] = useState<number | null>(null);
 
   useEffect(() => {
-    if (appSettings && keyMapping && isMousePressed) {
-      const midiEntry = midiData.find((data) => data.value > 0.1);
-      if (midiEntry) {
-        console.log(`now we can map ${JSON.stringify(midiEntry)}`);
+    if (appSettings && keyMapping && isMousePressed != null) {
+      // Left click
+      if (isMousePressed == 0) {
+        const midiEntry = midiData.find((data) => data.value > 0.1);
+        if (midiEntry) {
+          console.log(`now we can map ${JSON.stringify(midiEntry)}`);
 
+          updateSettings({
+            ...appSettings,
+            keymapping: {
+              ...appSettings.keymapping,
+              [midiEntry.key]: keyMapping,
+            },
+          });
+
+          setKeyMapping(null);
+          setIsMousePressed(null);
+        }
+      } else if (isMousePressed == 2) {
+        //right click
+        let newMapping = { ...appSettings.keymapping };
+        for (const x in newMapping) {
+          if (newMapping[x] == keyMapping) {
+            delete newMapping[x];
+            break;
+          }
+        }
         updateSettings({
           ...appSettings,
-          keymapping: {
-            ...appSettings.keymapping,
-            [midiEntry.key]: keyMapping,
-          },
+          keymapping: newMapping,
         });
-
         setKeyMapping(null);
-        setIsMousePressed(false);
+        setIsMousePressed(null);
       }
     }
   }, [keyMapping, midiData, isMousePressed]);
@@ -126,10 +144,12 @@ function App() {
       <header className="App-header">
         {/* <button onClick={onClick}>Log</button> */}
         <PianoHolder
-          onMouseDown={() => {
-            setIsMousePressed(true);
+          onMouseDown={(event) => {
+            // event.stopPropagation();
+            // console.log(event.button);
+            setIsMousePressed(event.button);
             setTimeout(() => {
-              setIsMousePressed(false);
+              setIsMousePressed(null);
             }, 3000);
           }}
         >
@@ -140,7 +160,7 @@ function App() {
             />
           )}
         </PianoHolder>
-        {keyMapping && isMousePressed && (
+        {keyMapping && isMousePressed == 0 && (
           <div>{`Press a key to bind for MIDI note number ${keyMapping}`}</div>
         )}
       </header>
