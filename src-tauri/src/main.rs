@@ -41,25 +41,6 @@ pub struct MidiUpdate {
   data: Vec<MidiEntry>,
 }
 
-fn default_mapping() -> AppSettings {
-  AppSettings {
-    keymapping: [
-      (HIDCodes::Q as u8, 57),
-      (HIDCodes::W as u8, 58),
-      (HIDCodes::E as u8, 59),
-      (HIDCodes::R as u8, 60),
-      (HIDCodes::T as u8, 61),
-      (HIDCodes::Y as u8, 62),
-      (HIDCodes::U as u8, 63),
-      (HIDCodes::I as u8, 64),
-      (HIDCodes::O as u8, 65),
-      (HIDCodes::P as u8, 66),
-    ]
-    .iter()
-    .cloned()
-    .collect(),
-  }
-}
 const CONFIG_DIR: &str = "wooting-midi";
 const CONFIG_FILE: &str = "config.json";
 impl AppSettings {
@@ -83,7 +64,7 @@ impl AppSettings {
     let mut content: String = String::new();
     let size = file.read_to_string(&mut content)?;
     if content.is_empty() {
-      let default = default_mapping();
+      let default = Self::default();
       file.write_all(&serde_json::to_vec(&default)?[..])?;
       Ok(default)
     } else {
@@ -113,6 +94,28 @@ impl AppSettings {
   }
 }
 
+impl Default for AppSettings {
+  fn default() -> Self {
+    Self {
+      keymapping: [
+        (HIDCodes::Q as u8, 57),
+        (HIDCodes::W as u8, 58),
+        (HIDCodes::E as u8, 59),
+        (HIDCodes::R as u8, 60),
+        (HIDCodes::T as u8, 61),
+        (HIDCodes::Y as u8, 62),
+        (HIDCodes::U as u8, 63),
+        (HIDCodes::I as u8, 64),
+        (HIDCodes::O as u8, 65),
+        (HIDCodes::P as u8, 66),
+      ]
+      .iter()
+      .cloned()
+      .collect(),
+    }
+  }
+}
+
 struct App {
   settings: AppSettings,
   thread_pool: Vec<JoinHandle<()>>,
@@ -123,7 +126,7 @@ struct App {
 impl App {
   fn new() -> Self {
     App {
-      settings: default_mapping(),
+      settings: AppSettings::default(),
       thread_pool: vec![],
       midi_service: Arc::new(RwLock::new(MidiService::new())),
       running: Arc::new(AtomicBool::new(true)),

@@ -1,9 +1,12 @@
 module.exports = {
-    webpack: {
-        configure: (config) => {
-            config.output.publicPath = ''
+  devServer: {
+    open: false,
+  },
+  webpack: {
+    configure: (config) => {
+      config.output.publicPath = "";
 
-            return config
-        }
-    }
-}
+      return config;
+    },
+  },
+};
