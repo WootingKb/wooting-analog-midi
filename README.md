@@ -2,7 +2,31 @@
 
 Experimental cross-platform Rust implementation for a Virtual MIDI device using the [Wooting Analog SDK](https://github.com/WootingKb/wooting-analog-sdk)!
 
+## Features
+
+- [x] Virtual MIDI Input from Wooting Analog Keyboards
+- [x] Velocity Input
+- [x] Polyphonic Aftertouch
+- [x] Interactively bind keys to MIDI notes
+- [ ] Channel Aftertouch
+- [ ] Channel Selection
+- [ ] Shift (or arbitrary) key to shift Octave
+
+## Getting Started
+
+### Downloads
+
+TODO
+
+### Setup
+
+#### Mac
+
+You may need to follow [this guide](https://medium.com/@keybaudio/virtual-midi-devices-on-macos-a45cdbdffdaf) to create a virtual MIDI device for the Application to output to!
+
 ## Development Setup
+
+This section is only relevant if you wish to help develop/contribute code to the project!
 
 ### Dependencies
 
@@ -38,11 +62,13 @@ yarn
 ```
 
 Then you should be able to run the application in development mode, which includes hot reloading automatically on save:
+
 ```bash
 yarn tauri dev
 ```
 
 If you want to build a distributable binary/package run:
+
 ```bash
 yarn tauri build
 ```
