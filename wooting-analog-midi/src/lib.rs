@@ -215,7 +215,7 @@ impl MidiService {
             }
         }
 
-        let midi_out = MidiOutput::new("My Test Output")?;
+        let midi_out = MidiOutput::new("Wooting Analog MIDI Output")?;
         // Get an output port (read from console if multiple are available)
         let out_ports = midi_out.ports();
         let out_port: &MidiOutputPort = match out_ports.len() {
