@@ -30,13 +30,15 @@ interface MidiUpdate {
 }
 
 let lastData: MidiUpdate = { data: [] };
-let updateCallback: Function;
+let updateCallback: (update: MidiUpdate) => void;
 listen<string>("midi-update", function (res) {
   if (updateCallback) {
     const data = JSON.parse(res.payload) as MidiUpdate;
     if (!_.isEqual(data, lastData)) updateCallback(data);
+    delete lastData.data;
     // Parse lastData again from payload. If we take data after the callacbk the equal check fails for unknown reason
     lastData = JSON.parse(res.payload);
+    delete res.payload;
   }
 });
 
@@ -70,6 +72,9 @@ function App() {
 
   useEffect(() => {
     updateCallback = (update: MidiUpdate) => {
+      if (midiState) {
+        delete midiState.data;
+      }
       setMidiState(update);
     };
   });

@@ -15,22 +15,6 @@ pub struct RequestBody {
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  LogOperation {
-    event: String,
-    payload: Option<String>,
-  },
-  PerformRequest {
-    endpoint: String,
-    body: RequestBody,
-    callback: String,
-    error: String,
-  },
-
-  RequestConfig {
-    callback: String,
-    error: String,
-  },
-  UpdateConfig {
-    config: String,
-  },
+  RequestConfig { callback: String, error: String },
+  UpdateConfig { config: String },
 }

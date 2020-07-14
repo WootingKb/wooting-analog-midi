@@ -8,13 +8,13 @@ extern crate wooting_analog_midi;
 #[macro_use]
 extern crate lazy_static;
 
-use log::{error, info, trace, warn};
+use log::{error, info, warn};
 use std::error::Error;
 use std::fs::OpenOptions;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
-use std::thread::sleep;
+use std::thread::{sleep, JoinHandle};
 use std::time::Duration;
 use tauri::api::path::config_dir;
 use wooting_analog_midi::{FromPrimitive, HIDCodes, MidiService, Note, REFRESH_RATE};
@@ -23,8 +23,10 @@ use cmd::AppSettings;
 use std::fs::create_dir;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::sync::mpsc::channel;
+use std::sync::mpsc::Receiver;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Serialize)]
@@ -35,12 +37,8 @@ struct MidiEntry {
 }
 
 #[derive(Serialize)]
-struct MidiUpdate {
+pub struct MidiUpdate {
   data: Vec<MidiEntry>,
-}
-
-lazy_static! {
-  static ref MIDISERVICE: Arc<RwLock<MidiService>> = Arc::new(RwLock::new(MidiService::new()));
 }
 
 fn default_mapping() -> AppSettings {
@@ -64,189 +62,247 @@ fn default_mapping() -> AppSettings {
 }
 const CONFIG_DIR: &str = "wooting-midi";
 const CONFIG_FILE: &str = "config.json";
-
-fn config_path() -> Result<PathBuf, Box<dyn Error>> {
-  let mut config_file = config_dir().ok_or("No config dir!")?;
-  config_file.push(CONFIG_DIR);
-  if !config_file.exists() {
-    create_dir(&config_file)?;
+impl AppSettings {
+  fn config_path() -> Result<PathBuf, Box<dyn Error>> {
+    let mut config_file = config_dir().ok_or("No config dir!")?;
+    config_file.push(CONFIG_DIR);
+    if !config_file.exists() {
+      create_dir(&config_file)?;
+    }
+    config_file.push(CONFIG_FILE);
+    Ok(config_file)
   }
 
-  config_file.push(CONFIG_FILE);
-  Ok(config_file)
-}
+  fn load_config() -> Result<AppSettings, Box<dyn Error>> {
+    let config_file = Self::config_path()?;
+    let mut file = OpenOptions::new()
+      .read(true)
+      .write(true)
+      .create(true)
+      .open(config_file)?;
+    let mut content: String = String::new();
+    let size = file.read_to_string(&mut content)?;
+    if content.is_empty() {
+      let default = default_mapping();
+      file.write_all(&serde_json::to_vec(&default)?[..])?;
+      Ok(default)
+    } else {
+      Ok(serde_json::from_str::<AppSettings>(&content.trim()[..])?)
+    }
+  }
 
-fn load_config() -> Result<AppSettings, Box<dyn Error>> {
-  let config_file = config_path()?;
+  fn save_config(&self) -> Result<(), Box<dyn Error>> {
+    let config_file = Self::config_path()?;
+    info!("Saving to {:?}", config_file);
+    let mut file = OpenOptions::new()
+      .read(true)
+      .write(true)
+      .create(true)
+      .truncate(true)
+      .open(config_file)?;
+    file.write_all(&serde_json::to_vec(&self)?[..])?;
+    Ok(())
+  }
 
-  let mut file = OpenOptions::new()
-    .read(true)
-    .write(true)
-    .create(true)
-    .open(config_file)?;
-  let mut content: String = String::new();
-  let size = file.read_to_string(&mut content)?;
-
-  if content.is_empty() {
-    let default = default_mapping();
-    file.write_all(&serde_json::to_vec(&default)?[..])?;
-    Ok(default)
-  } else {
-    Ok(serde_json::from_str::<AppSettings>(&content[..])?)
+  pub fn get_proper_mapping(&self) -> HashMap<HIDCodes, u8> {
+    self
+      .keymapping
+      .iter()
+      .map(|(key, note)| (HIDCodes::from_u8(*key).unwrap(), *note))
+      .collect()
   }
 }
 
-fn save_config(settings: &AppSettings) -> Result<(), Box<dyn Error>> {
-  let config_file = config_path()?;
-  info!("Saving to {:?}", config_file);
-
-  let mut file = OpenOptions::new()
-    .read(true)
-    .write(true)
-    .create(true)
-    .open(config_file)?;
-
-  file.write_all(&serde_json::to_vec(&settings)?[..])?;
-  Ok(())
+struct App {
+  settings: AppSettings,
+  thread_pool: Vec<JoinHandle<()>>,
+  midi_service: Arc<RwLock<MidiService>>,
+  running: Arc<AtomicBool>,
 }
 
-fn get_proper_mapping(mapping: &HashMap<u8, u8>) -> HashMap<HIDCodes, u8> {
-  mapping
-    .iter()
-    .map(|(key, note)| (HIDCodes::from_u8(*key).unwrap(), *note))
-    .collect()
+impl App {
+  fn new() -> Self {
+    App {
+      settings: default_mapping(),
+      thread_pool: vec![],
+      midi_service: Arc::new(RwLock::new(MidiService::new())),
+      running: Arc::new(AtomicBool::new(true)),
+    }
+  }
+
+  fn init(&mut self) -> Result<Receiver<AppEvent>, Box<dyn Error>> {
+    self.settings = AppSettings::load_config()?;
+
+    self
+      .midi_service
+      .write()
+      .unwrap()
+      .update_mapping(&self.settings.get_proper_mapping())
+      .map_err(output_err)?;
+
+    self
+      .midi_service
+      .write()
+      .unwrap()
+      .init()
+      .map_err(output_err);
+
+    let (tx, rx) = channel::<AppEvent>();
+
+    let running_inner = self.running.clone();
+    let midi_service_inner = self.midi_service.clone();
+    let tx_inner = tx.clone();
+    self.thread_pool.push(thread::spawn(move || {
+      let mut iter_count: u32 = 0;
+      while running_inner.load(Ordering::SeqCst) {
+        if midi_service_inner
+          .write()
+          .unwrap()
+          .poll()
+          .map_err(output_err)
+          .is_ok()
+        {
+          if (iter_count % (REFRESH_RATE as u32 / MIDI_UPDATE_RATE)) == 0 {
+            let notes: &HashMap<HIDCodes, Note> = &midi_service_inner.read().unwrap().notes;
+            let event_message = MidiUpdate {
+              data: notes
+                .iter()
+                .filter_map(|(key, note)| {
+                  if note.note_id.is_some() || note.current_value > 0.0 {
+                    Some(MidiEntry {
+                      key: key.clone() as u8,
+                      note: note.note_id,
+                      value: note.current_value,
+                    })
+                  } else {
+                    None
+                  }
+                })
+                .collect(),
+            };
+            tx_inner.send(AppEvent::MidiUpdate(event_message));
+          }
+        }
+
+        iter_count += 1;
+        sleep(Duration::from_secs_f32(1.0 / REFRESH_RATE))
+      }
+    }));
+
+    Ok(rx)
+  }
+
+  fn update_config(&mut self, config: AppSettings) {
+    self.settings = config;
+    //Update the service with the new mapping
+    if let Err(e) = self
+      .midi_service
+      .write()
+      .unwrap()
+      .update_mapping(&self.settings.get_proper_mapping())
+    {
+      error!("Error updating midi service mapping! {}", e);
+    }
+
+    if let Err(e) = self.settings.save_config() {
+      error!("Error saving: {}", e);
+    }
+  }
+
+  fn get_config_string(&self) -> String {
+    serde_json::to_string(&self.settings).unwrap()
+  }
+
+  fn exec_loop<F: 'static>(&mut self, mut f: F)
+  where
+    F: FnMut() + Send,
+  {
+    let running_inner = self.running.clone();
+    self.thread_pool.push(thread::spawn(move || {
+      while running_inner.load(Ordering::SeqCst) {
+        f();
+      }
+    }));
+  }
+
+  fn uninit(&mut self) {
+    if let Err(e) = self.settings.save_config() {
+      error!("Error saving config! {}", e);
+    }
+
+    self.running.store(false, Ordering::SeqCst);
+    for thread in self.thread_pool.drain(..) {
+      if let Err(e) = thread.join() {
+        error!("Error joining thread: {:?}", e);
+      }
+    }
+    self.midi_service.write().unwrap().uninit();
+  }
 }
+
+impl Drop for App {
+  fn drop(&mut self) {
+    self.uninit();
+  }
+}
+
+fn output_err(error: Box<dyn Error>) -> Box<dyn Error> {
+  error!("Error: {}", error);
+  error
+}
+
+pub enum ChannelMessage {
+  UpdateBindings,
+}
+pub enum AppEvent {
+  MidiUpdate(MidiUpdate),
+}
+
+lazy_static! {
+  static ref APP: Arc<RwLock<App>> = Arc::new(RwLock::new(App::new()));
+}
+
 pub const MIDI_UPDATE_RATE: u32 = 15; //Hz
 
 fn main() {
   if let Err(e) = env_logger::try_init() {
     warn!("Failed to init env_logger, {}", e);
   }
-  let mut config = Arc::new(RwLock::new(load_config().unwrap()));
-  // let running = Arc::new(AtomicBool::new(true));
-  let config_changed = Arc::new(RwLock::new(false));
-
-  // let running_inner = running.clone();
 
   let mut setup = false;
-  let config_inner = config.clone();
-  let config_changed_inner = config_changed.clone();
-  let config_changed_inner1 = config_changed.clone();
-  let config_inner1 = config.clone();
-
   tauri::AppBuilder::new()
     .setup(move |webview, _source| {
       if !setup {
+        setup = true;
         let handle = webview.handle();
-        let config_inner1 = config_inner1.clone();
-        let config_changed_inner1 = config_changed_inner1.clone();
+        let event_receiver = APP.write().unwrap().init().unwrap();
 
-        thread::spawn(move || {
-          let initial_mapping = get_proper_mapping(&config_inner1.read().unwrap().keymapping);
-          MIDISERVICE
-            .write()
-            .unwrap()
-            .update_mapping(&initial_mapping);
-
-          match MIDISERVICE.write().unwrap().init() {
-            Ok(_) => {}
-            Err(e) => error!("Error: {}", e),
+        APP.write().unwrap().exec_loop(move || {
+          if let Ok(event) = event_receiver
+            .recv()
+            .map_err(|err| warn!("Error on event reciever: {}", err))
+          {
+            match event {
+              AppEvent::MidiUpdate(update) => {
+                if let Err(e) = tauri::event::emit(
+                  &handle,
+                  String::from("midi-update"),
+                  Some(serde_json::to_string(&update).unwrap()),
+                ) {
+                  error!("Error emitting event! {}", e);
+                }
+              }
+            }
           }
-          // while running_inner.load(Ordering::SeqCst) {
-          let mut iter_count: u32 = 0;
-          loop {
-            if *config_changed_inner1.read().unwrap() {
-              *config_changed_inner1.write().unwrap() = false;
-              //Update mapping
-              let mapping = get_proper_mapping(&config_inner1.read().unwrap().keymapping);
-              MIDISERVICE.write().unwrap().update_mapping(&mapping);
-            }
-
-            match MIDISERVICE.write().unwrap().poll() {
-              Ok(_) => {}
-              Err(e) => error!("Error: {}", e),
-            }
-            if (iter_count % (REFRESH_RATE as u32 / MIDI_UPDATE_RATE)) == 0 {
-              let notes: &HashMap<HIDCodes, Note> = &MIDISERVICE.read().unwrap().notes;
-              let event_message = MidiUpdate {
-                data: notes
-                  .iter()
-                  .filter_map(|(key, note)| {
-                    if note.note_id.is_some() || note.current_value > 0.0 {
-                      Some(MidiEntry {
-                        key: key.clone() as u8,
-                        note: note.note_id,
-                        value: note.current_value,
-                      })
-                    } else {
-                      None
-                    }
-                  })
-                  .collect(),
-              };
-              tauri::event::emit(
-                &handle,
-                String::from("midi-update"),
-                Some(serde_json::to_string(&event_message).unwrap()),
-              );
-            }
-            // let reply = Reply {
-            //   data: "something else".to_string(),
-            // };
-
-            iter_count += 1;
-            sleep(Duration::from_secs_f32(1.0 / REFRESH_RATE))
-          }
-        });
+        })
       }
-      // tauri::event::listen(String::from("js-event"), move |msg| {
-      //   println!("got js-event with message '{:?}'", msg);
-      //   let reply = Reply {
-      //     data: "something else".to_string(),
-      //   };
-
-      //   tauri::event::emit(
-      //     &handle,
-      //     String::from("rust-event"),
-      //     Some(serde_json::to_string(&reply).unwrap()),
-      //   );
-      // });
-
-      // webview.eval("window.onTauriInit()").unwrap();
     })
     .invoke_handler(move |_webview, arg| {
-      let config_inner1 = config_inner.clone();
-      let config_inner2 = config_inner.clone();
       use cmd::Cmd::*;
       match serde_json::from_str(arg) {
         Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {
-            LogOperation { event, payload } => {
-              println!("{} {:?}", event, payload);
-            }
-            PerformRequest {
-              endpoint,
-              body,
-              callback,
-              error,
-            } => {
-              // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
-              // so you can easily communicate between JS and Rust with promises
-              tauri::execute_promise(
-                _webview,
-                move || {
-                  println!("{} {:?}", endpoint, body);
-                  // perform an async operation here
-                  // if the returned value is Ok, the promise will be resolved with its value
-                  // if the returned value is Err, the promise will be rejected with its value
-                  // the value is a string that will be eval'd
-                  Ok("{ key: 'response', value: [{ id: 3 }] }".to_string())
-                },
-                callback,
-                error,
-              )
-            }
             RequestConfig { callback, error } => {
               // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
               // so you can easily communicate between JS and Rust with promises
@@ -258,7 +314,7 @@ fn main() {
                   // if the returned value is Ok, the promise will be resolved with its value
                   // if the returned value is Err, the promise will be rejected with its value
                   // the value is a string that will be eval'd
-                  Ok(serde_json::to_string(&(*config_inner1.read().unwrap())).unwrap())
+                  Ok(APP.read().unwrap().get_config_string())
                 },
                 callback,
                 error,
@@ -267,11 +323,7 @@ fn main() {
             UpdateConfig { config } => {
               let config = serde_json::from_str(&config[..]).unwrap();
 
-              *config_inner2.write().unwrap() = config;
-              *config_changed_inner.write().unwrap() = true;
-              if let Err(e) = save_config(&(*config_inner2.read().unwrap())) {
-                error!("Error saving: {}", e);
-              }
+              APP.write().unwrap().update_config(config);
             }
           }
           Ok(())
@@ -280,6 +332,6 @@ fn main() {
     })
     .build()
     .run();
-  save_config(&config.read().unwrap()).unwrap();
-  // running.store(false, Ordering::SeqCst);
+  println!("After run");
+  APP.write().unwrap().uninit();
 }

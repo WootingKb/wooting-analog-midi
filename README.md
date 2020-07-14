@@ -61,6 +61,24 @@ First you gotta install dependencies of the project
 yarn
 ```
 
+To help with development it's useful to export the `RUST_LOG` environment variable to get more debugging output from the application
+e.g.
+
+```bash
+# Bash
+## To have it for your entire terminal session
+export RUST_LOG=debug
+## Or to have it just for the dev command
+RUST_LOG=debug yarn tauri dev
+
+
+# Powershell
+$env:RUST_LOG="debug"
+
+# CMD
+set RUST_LOG=debug
+```
+
 Then you should be able to run the application in development mode, which includes hot reloading automatically on save:
 
 ```bash

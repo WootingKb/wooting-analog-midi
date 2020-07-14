@@ -5,28 +5,21 @@ extern crate wooting_analog_wrapper;
 #[macro_use]
 extern crate lazy_static;
 
-use log::{error, info, trace, warn};
+use log::{error, info};
 use sdk::SDKResult;
 pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes};
 use std::error::Error;
-use std::io::{stdin, stdout, Write};
-use std::thread::sleep;
-use std::time::Duration;
 use wooting_analog_wrapper as sdk;
 
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
-use std::borrow::{Borrow, BorrowMut};
-use std::cmp::{max, min};
 use std::collections::HashMap;
-use std::f32::consts::E;
-use std::sync::Arc;
 
 const DEVICE_BUFFER_MAX: usize = 5;
 const ANALOG_BUFFER_READ_MAX: usize = 10;
 const NOTE_ON_MSG: u8 = 0x90;
 const NOTE_OFF_MSG: u8 = 0x80;
 const POLY_AFTERTOUCH_MSG: u8 = 0xA0;
-const VELOCITY: u8 = 0x64;
+// const VELOCITY: u8 = 0x64;
 const THRESHOLD: f32 = 0.1;
 const AFTERTOUCH: bool = true;
 // How many times a second we'll check for updates on how much keys are pressed
@@ -34,25 +27,25 @@ pub const REFRESH_RATE: f32 = 100.0; //Hz
 
 // NoteID Reference: https://newt.phys.unsw.edu.au/jw/notes.html
 type NoteID = u8;
-lazy_static! {
-    static ref KEYMAPPING: HashMap<HIDCodes, NoteID> = {
-        [
-            (HIDCodes::Q, 57),
-            (HIDCodes::W, 58),
-            (HIDCodes::E, 59),
-            (HIDCodes::R, 60),
-            (HIDCodes::T, 61),
-            (HIDCodes::Y, 62),
-            (HIDCodes::U, 63),
-            (HIDCodes::I, 64),
-            (HIDCodes::O, 65),
-            (HIDCodes::P, 66),
-        ]
-        .iter()
-        .cloned()
-        .collect()
-    };
-}
+// lazy_static! {
+//     static ref KEYMAPPING: HashMap<HIDCodes, NoteID> = {
+//         [
+//             (HIDCodes::Q, 57),
+//             (HIDCodes::W, 58),
+//             (HIDCodes::E, 59),
+//             (HIDCodes::R, 60),
+//             (HIDCodes::T, 61),
+//             (HIDCodes::Y, 62),
+//             (HIDCodes::U, 63),
+//             (HIDCodes::I, 64),
+//             (HIDCodes::O, 65),
+//             (HIDCodes::P, 66),
+//         ]
+//         .iter()
+//         .cloned()
+//         .collect()
+//     };
+// }
 trait NoteSink {
     // TODO: Return Result
     fn note_on(&mut self, note_id: NoteID, velocity: f32);
@@ -84,7 +77,7 @@ impl NoteSink for MidiOutputConnection {
 pub struct Note {
     pub current_value: f32,
     pub note_id: Option<NoteID>,
-    associatedKey: HIDCodes,
+    associated_key: HIDCodes,
     pressed: bool,
     velocity: f32,
     pressure: f32,
@@ -93,7 +86,7 @@ pub struct Note {
 impl Note {
     pub fn new(key: HIDCodes, note: Option<NoteID>) -> Note {
         Note {
-            associatedKey: key,
+            associated_key: key,
             note_id: note,
             current_value: 0.0,
             pressed: false,
@@ -149,7 +142,8 @@ impl Note {
     }
 }
 
-fn generate_note_mapping(keymapping: &HashMap<HIDCodes, u8>) -> HashMap<HIDCodes, Note> {
+// fn generate_note_mapping(_keymapping: &HashMap<HIDCodes, u8>) -> HashMap<HIDCodes, Note> {
+fn generate_note_mapping() -> HashMap<HIDCodes, Note> {
     // keymapping
     //     .iter()
     //     .map(|(key, note)| (key.clone(), Note::new(key.clone(), *note)))
@@ -176,7 +170,7 @@ impl MidiService {
     pub fn new() -> Self {
         MidiService {
             connection: None,
-            notes: generate_note_mapping(&KEYMAPPING),
+            notes: generate_note_mapping(),
         }
     }
 
@@ -249,6 +243,10 @@ impl MidiService {
     }
 
     pub fn poll(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.connection.is_none() {
+            Err("No MIDI connection!")?;
+        }
+
         let read_result: SDKResult<HashMap<u16, f32>> =
             sdk::read_full_buffer(ANALOG_BUFFER_READ_MAX);
         match read_result.0 {
@@ -256,10 +254,7 @@ impl MidiService {
                 for (code, value) in analog_data.iter() {
                     if let Some(hid_code) = HIDCodes::from_u16(*code) {
                         if let Some(note) = self.notes.get_mut(&hid_code) {
-                            note.update_current_value(
-                                *value,
-                                self.connection.as_mut().ok_or("No connection!")?,
-                            );
+                            note.update_current_value(*value, self.connection.as_mut().unwrap());
                         }
                     }
                 }
@@ -270,9 +265,17 @@ impl MidiService {
         };
         Ok(())
     }
+
+    pub fn uninit(&mut self) {
+        info!("Uninitialising MidiService");
+        sdk::uninitialise();
+        if let Some(output) = self.connection.take() {
+            output.close();
+        }
+    }
 }
 impl Drop for MidiService {
     fn drop(&mut self) {
-        sdk::uninitialise();
+        self.uninit();
     }
 }
