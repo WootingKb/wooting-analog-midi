@@ -4,6 +4,8 @@ extern crate midir;
 extern crate wooting_analog_wrapper;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate anyhow;
 
 use log::{error, info};
 use sdk::SDKResult;
@@ -11,7 +13,9 @@ pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes};
 use std::error::Error;
 use wooting_analog_wrapper as sdk;
 
+use anyhow::{Context, Result};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 const DEVICE_BUFFER_MAX: usize = 5;
@@ -48,28 +52,31 @@ type NoteID = u8;
 // }
 trait NoteSink {
     // TODO: Return Result
-    fn note_on(&mut self, note_id: NoteID, velocity: f32);
-    fn note_off(&mut self, note_id: NoteID, velocity: f32);
-    fn polyphonic_aftertouch(&mut self, note_id: NoteID, pressure: f32);
+    fn note_on(&mut self, note_id: NoteID, velocity: f32) -> Result<()>;
+    fn note_off(&mut self, note_id: NoteID, velocity: f32) -> Result<()>;
+    fn polyphonic_aftertouch(&mut self, note_id: NoteID, pressure: f32) -> Result<()>;
 }
 
 impl NoteSink for MidiOutputConnection {
-    fn note_on(&mut self, note_id: NoteID, velocity: f32) {
+    fn note_on(&mut self, note_id: NoteID, velocity: f32) -> Result<()> {
         let vbyte = (f32::min(velocity, 1.0) * 127.0) as u8;
-        self.send(&[NOTE_ON_MSG, note_id, vbyte]);
+        self.send(&[NOTE_ON_MSG, note_id, vbyte])?;
+        Ok(())
     }
 
-    fn note_off(&mut self, note_id: NoteID, velocity: f32) {
+    fn note_off(&mut self, note_id: NoteID, velocity: f32) -> Result<()> {
         let vbyte = (f32::min(velocity, 1.0) * 127.0) as u8;
-        self.send(&[NOTE_OFF_MSG, note_id, vbyte]);
+        self.send(&[NOTE_OFF_MSG, note_id, vbyte])?;
+        Ok(())
     }
 
-    fn polyphonic_aftertouch(&mut self, note_id: NoteID, pressure: f32) {
+    fn polyphonic_aftertouch(&mut self, note_id: NoteID, pressure: f32) -> Result<()> {
         self.send(&[
             POLY_AFTERTOUCH_MSG,
             note_id,
             (f32::min(pressure, 1.0) * 127.0) as u8,
-        ]);
+        ])?;
+        Ok(())
     }
 }
 
@@ -157,7 +164,11 @@ fn generate_note_mapping() -> HashMap<HIDCodes, Note> {
         .collect()
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PortOption(usize, String, bool);
+
 pub struct MidiService {
+    pub port_options: Option<Vec<PortOption>>,
     connection: Option<MidiOutputConnection>,
     pub notes: HashMap<HIDCodes, Note>,
 }
@@ -169,15 +180,13 @@ unsafe impl Sync for MidiService {}
 impl MidiService {
     pub fn new() -> Self {
         MidiService {
+            port_options: None,
             connection: None,
             notes: generate_note_mapping(),
         }
     }
 
-    pub fn update_mapping(
-        &mut self,
-        mapping: &HashMap<HIDCodes, NoteID>,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn update_mapping(&mut self, mapping: &HashMap<HIDCodes, NoteID>) -> Result<()> {
         // self.notes =
         for (key, note) in self.notes.iter_mut() {
             if let Some(note_id) = mapping.get(&key) {
@@ -190,7 +199,8 @@ impl MidiService {
         Ok(())
     }
 
-    pub fn init(&mut self) -> Result<(), Box<dyn Error>> {
+    // pub fn init(&mut self, connection_preference: Option<usize>) -> Result<(), Box<dyn Error>> {
+    pub fn init(&mut self) -> Result<()> {
         info!("Starting Wooting Analog SDK!");
         let init_result: SDKResult<u32> = sdk::initialise();
         match init_result.0 {
@@ -205,41 +215,82 @@ impl MidiService {
                 }
             }
             Err(e) => {
-                return Err(format!("SDK Failed to initialise. Error: {:?}", e).into());
+                Err(anyhow!("SDK Failed to initialise. Error: {:?}", e))?;
             }
         }
 
         let midi_out = MidiOutput::new("Wooting Analog MIDI Output")?;
-        // Get an output port (read from console if multiple are available)
-        let out_ports = midi_out.ports();
-        let out_port: &MidiOutputPort = match out_ports.len() {
-            0 => return Err("no output port found".into()),
-            1 => {
-                println!(
-                    "Choosing the only available output port: {}",
-                    midi_out.port_name(&out_ports[0]).unwrap()
-                );
-                &out_ports[0]
-            }
-            _ => {
-                // println!("\nAvailable output ports:");
-                // for (i, p) in out_ports.iter().enumerate() {
-                //     println!("{}: {}", i, midi_out.port_name(p).unwrap());
-                // }
-                // print!("Please select output port: ");
-                // stdout().flush()?;
-                // let mut input = String::new();
-                // stdin().read_line(&mut input)?;
-                // out_ports
-                //     .get(input.trim().parse::<usize>()?)
-                // .ok_or("invalid output port selected")?
-                out_ports.get(0).ok_or("invalid output port selected")?
-            }
-        };
-        info!("Opening connection");
-        self.connection = Some(midi_out.connect(out_port, "midir-test")?);
 
+        let ports = midi_out.ports();
+        self.port_options = Some(
+            ports
+                .iter()
+                .enumerate()
+                .map(|(i, port)| PortOption(i, midi_out.port_name(&port).unwrap(), i == 0))
+                .collect(),
+        );
+        info!("We have {} ports available!", ports.len());
+        if ports.len() > 0 {
+            info!("Opening connection");
+            self.connection = Some(
+                midi_out
+                    .connect(&ports[0], "wooting-analog-midi")
+                    .map_err(|e| anyhow!("Error: {}", e))?,
+            );
+        } else {
+            info!("No output ports available!");
+        }
+        // self.port_options = Some(midi_out);
         Ok(())
+    }
+
+    pub fn select_port(&mut self, option: usize) -> Result<()> {
+        if let Some(options) = &self.port_options {
+            if option >= options.len() {
+                return Err(anyhow!("Port option out of range!"));
+            }
+
+            let selection = &options[option];
+
+            // Port is already the selected one, don't need to do anything
+            if selection.2 {
+                return Ok(());
+            }
+
+            // Close previous connection in advance
+            // if let Some(old) = self.connection.take() {
+            //     old.close();
+            // }
+
+            let midi_out = MidiOutput::new("Wooting Analog MIDI Output")?;
+            let ports = midi_out.ports();
+            self.port_options = Some(
+                ports
+                    .iter()
+                    .enumerate()
+                    .map(|(i, port)| PortOption(i, midi_out.port_name(&port).unwrap(), i == option))
+                    .collect(),
+            );
+
+            self.connection = Some(
+                midi_out
+                    .connect(&ports[option], "wooting-analog-midi")
+                    .map_err(|e| anyhow!("Error: {}", e))?,
+            );
+
+            // for (i, port) in ports.iter().enumerate() {
+            //     let port_name = midi_out.port_name(&port)?;
+
+            //     if port_name == selection.1 {
+            //     } else {
+
+            //     }
+            // }
+
+            Ok(())
+        } else {
+            return Err(anyhow!("Port options not initialised"));
+        }
     }
 
     pub fn poll(&mut self) -> Result<(), Box<dyn Error>> {

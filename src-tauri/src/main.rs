@@ -7,6 +7,10 @@ extern crate env_logger;
 extern crate wooting_analog_midi;
 #[macro_use]
 extern crate lazy_static;
+// #[macro_use]
+// extern crate crossbeam_channel;
+#[macro_use]
+extern crate anyhow;
 
 use log::{error, info, warn};
 use std::error::Error;
@@ -17,17 +21,17 @@ use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::Duration;
 use tauri::api::path::config_dir;
-use wooting_analog_midi::{FromPrimitive, HIDCodes, MidiService, Note, REFRESH_RATE};
+use wooting_analog_midi::{FromPrimitive, HIDCodes, MidiService, Note, PortOption, REFRESH_RATE};
 mod cmd;
+use anyhow::{Context, Result};
 use cmd::AppSettings;
+use serde::Serialize;
+use std::collections::HashMap;
 use std::fs::create_dir;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
-use std::sync::mpsc::Receiver;
-
-use serde::Serialize;
-use std::collections::HashMap;
+use std::sync::mpsc::{Receiver, Sender};
 
 #[derive(Serialize)]
 struct MidiEntry {
@@ -44,8 +48,8 @@ pub struct MidiUpdate {
 const CONFIG_DIR: &str = "wooting-midi";
 const CONFIG_FILE: &str = "config.json";
 impl AppSettings {
-  fn config_path() -> Result<PathBuf, Box<dyn Error>> {
-    let mut config_file = config_dir().ok_or("No config dir!")?;
+  fn config_path() -> Result<PathBuf> {
+    let mut config_file = config_dir().context("No config dir!")?;
     config_file.push(CONFIG_DIR);
     if !config_file.exists() {
       create_dir(&config_file)?;
@@ -54,7 +58,7 @@ impl AppSettings {
     Ok(config_file)
   }
 
-  fn load_config() -> Result<AppSettings, Box<dyn Error>> {
+  fn load_config() -> Result<AppSettings> {
     let config_file = Self::config_path()?;
     let mut file = OpenOptions::new()
       .read(true)
@@ -72,7 +76,7 @@ impl AppSettings {
     }
   }
 
-  fn save_config(&self) -> Result<(), Box<dyn Error>> {
+  fn save_config(&self) -> Result<()> {
     let config_file = Self::config_path()?;
     info!("Saving to {:?}", config_file);
     let mut file = OpenOptions::new()
@@ -121,6 +125,7 @@ struct App {
   thread_pool: Vec<JoinHandle<()>>,
   midi_service: Arc<RwLock<MidiService>>,
   running: Arc<AtomicBool>,
+  // event_sender: Option<Sender<AppEvent>>,
 }
 
 impl App {
@@ -130,25 +135,21 @@ impl App {
       thread_pool: vec![],
       midi_service: Arc::new(RwLock::new(MidiService::new())),
       running: Arc::new(AtomicBool::new(true)),
+      // event_sender: None,
     }
   }
 
-  fn init(&mut self) -> Result<Receiver<AppEvent>, Box<dyn Error>> {
-    self.settings = AppSettings::load_config()?;
+  fn init(&mut self) -> Result<Receiver<AppEvent>> {
+    self.settings = AppSettings::load_config().context("Failed to load App Settings")?;
 
     self
       .midi_service
       .write()
       .unwrap()
       .update_mapping(&self.settings.get_proper_mapping())
-      .map_err(output_err)?;
+      .with_context(|| "Failed to initialise loaded mapping")?;
 
-    self
-      .midi_service
-      .write()
-      .unwrap()
-      .init()
-      .map_err(output_err);
+    self.midi_service.write().unwrap().init()?;
 
     let (tx, rx) = channel::<AppEvent>();
 
@@ -192,6 +193,8 @@ impl App {
       }
     }));
 
+    // self.event_sender = Some(tx);
+
     Ok(rx)
   }
 
@@ -216,6 +219,10 @@ impl App {
     serde_json::to_string(&self.settings).unwrap()
   }
 
+  fn get_port_options_string(&self) -> String {
+    serde_json::to_string(&self.midi_service.read().unwrap().port_options).unwrap()
+  }
+
   fn exec_loop<F: 'static>(&mut self, mut f: F)
   where
     F: FnMut() + Send,
@@ -226,6 +233,19 @@ impl App {
         f();
       }
     }));
+  }
+
+  fn select_port(&mut self, option: usize) -> Result<String> {
+    self.midi_service.write().unwrap().select_port(option)?;
+    Ok(serde_json::to_string(
+      self
+        .midi_service
+        .read()
+        .unwrap()
+        .port_options
+        .as_ref()
+        .unwrap(),
+    )?)
   }
 
   fn uninit(&mut self) {
@@ -259,6 +279,7 @@ pub enum ChannelMessage {
 }
 pub enum AppEvent {
   MidiUpdate(MidiUpdate),
+  // InitComplete,
 }
 
 lazy_static! {
@@ -299,6 +320,11 @@ fn main() {
           }
         })
       }
+      let handle = webview.handle();
+      if let Err(e) = tauri::event::emit(&handle, String::from("init-complete"), Option::<()>::None)
+      {
+        error!("Error emitting event! {}", e);
+      }
     })
     .invoke_handler(move |_webview, arg| {
       use cmd::Cmd::*;
@@ -328,6 +354,39 @@ fn main() {
 
               APP.write().unwrap().update_config(config);
             }
+            PortOptions { callback, error } => {
+              // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
+              // so you can easily communicate between JS and Rust with promises
+              tauri::execute_promise(
+                _webview,
+                move || {
+                  // println!("{} {:?}", endpoint, body);
+                  // perform an async operation here
+                  // if the returned value is Ok, the promise will be resolved with its value
+                  // if the returned value is Err, the promise will be rejected with its value
+                  // the value is a string that will be eval'd
+                  Ok(APP.read().unwrap().get_port_options_string())
+                },
+                callback,
+                error,
+              )
+            }
+            SelectPort {
+              option,
+              callback,
+              error,
+            } => tauri::execute_promise(
+              _webview,
+              move || {
+                APP
+                  .write()
+                  .unwrap()
+                  .select_port(option)
+                  .map(|data| serde_json::to_string(&data).unwrap())
+              },
+              callback,
+              error,
+            ),
           }
           Ok(())
         }

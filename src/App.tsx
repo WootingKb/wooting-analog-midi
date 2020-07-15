@@ -15,6 +15,12 @@ const PianoHolder = styled.div`
   padding: 1em;
 `;
 
+const PortSelectionWrapper = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+`;
+
 interface AppSettings {
   keymapping: { [key: number]: number };
 }
@@ -27,6 +33,33 @@ export interface MidiEntry {
 
 interface MidiUpdate {
   data: MidiEntry[];
+}
+
+type PortOption = [number, string, boolean];
+
+type PortOptions = PortOption[];
+
+async function getPortOptions(): Promise<PortOptions> {
+  return await tauri
+    .promisified<string>({
+      cmd: "portOptions",
+    })
+    .then((response) => {
+      console.log(response);
+      return JSON.parse(response) as PortOptions;
+    });
+}
+
+async function selectPort(option: number): Promise<PortOptions> {
+  return await tauri
+    .promisified<string>({
+      cmd: "selectPort",
+      option: option,
+    })
+    .then((response) => {
+      console.log(response);
+      return JSON.parse(response) as PortOptions;
+    });
 }
 
 let lastData: MidiUpdate = { data: [] };
@@ -45,6 +78,7 @@ listen<string>("midi-update", function (res) {
 function App() {
   const [midiState, setMidiState] = useState<MidiUpdate | undefined>();
   const [appSettings, setAppSettings] = useState<AppSettings | undefined>();
+  const [portOptions, setPortOptions] = useState<PortOptions | undefined>();
 
   function updateSettings(settings: AppSettings) {
     setAppSettings(settings);
@@ -52,23 +86,32 @@ function App() {
   }
 
   useEffect(() => {
-    if (!appSettings) {
-      tauri
-        .promisified<string>({
-          cmd: "requestConfig",
-        })
-        .then(function (response) {
-          console.log(response);
-          const settings = JSON.parse(response) as AppSettings;
-          console.log(settings);
-          setAppSettings(settings);
+    listen(
+      "init-complete",
+      () => {
+        console.log("Init complete");
+        tauri
+          .promisified<string>({
+            cmd: "requestConfig",
+          })
+          .then(function (response) {
+            console.log(response);
+            const settings = JSON.parse(response) as AppSettings;
+            console.log(settings);
+            setAppSettings(settings);
 
-          // settings.keymapping[HIDCodes.ArrowUp] = 20;
-          // console.log(settings);
-          // updateSettings(settings);
+            // settings.keymapping[HIDCodes.ArrowUp] = 20;
+            // console.log(settings);
+            // updateSettings(settings);
+          });
+        getPortOptions().then((result) => {
+          console.log(result);
+          setPortOptions(result);
         });
-    }
-  }, [appSettings]);
+      },
+      true
+    );
+  }, []);
 
   useEffect(() => {
     updateCallback = (update: MidiUpdate) => {
@@ -79,21 +122,6 @@ function App() {
     };
   });
 
-  function onClick() {
-    //@ts-ignore
-    tauri.invoke({
-      cmd: "logOperation",
-      event: "tauri-click",
-      payload: "this payload is optional because we used Option in Rust",
-    });
-
-    // if (appSettings) {
-    //   appSettings.keymapping[HIDCodes.X] = 41;
-    //   console.log(appSettings);
-    //   updateSettings(appSettings);
-    // }
-  }
-
   const midiData = midiState?.data?.sort((a, b) => a.key - b.key) ?? [];
 
   const [keyMapping, setKeyMapping] = useState<number | null>(null);
@@ -103,7 +131,7 @@ function App() {
 
   useEffect(() => {
     if (appSettings && keyMapping && isMousePressed != null) {
-      // Left click
+      // Left click bind to first pressed key
       if (isMousePressed == 0) {
         const midiEntry = midiData.find((data) => data.value > 0.1);
         if (midiEntry) {
@@ -121,7 +149,7 @@ function App() {
           setIsMousePressed(null);
         }
       } else if (isMousePressed == 2) {
-        //right click
+        //right click unbind
         let newMapping = { ...appSettings.keymapping };
         for (const x in newMapping) {
           if (newMapping[x] == keyMapping) {
@@ -139,14 +167,38 @@ function App() {
     }
   }, [keyMapping, midiData, isMousePressed]);
 
+  function onPortSelectionChanged(choice: number) {
+    console.log("Selected " + choice);
+    selectPort(choice).then((result) => {
+      setPortOptions(result);
+    });
+  }
+
   return (
     <div className="App">
       <header className="App-header">
+        <PortSelectionWrapper>
+          <p>Output Port:</p>
+          {portOptions && (
+            <select
+              value={portOptions.findIndex((item) => item[2])}
+              onChange={(event) => {
+                onPortSelectionChanged(parseInt(event.target.value));
+              }}
+            >
+              {portOptions.map((item) => (
+                <option key={item[0]} value={item[0]}>
+                  {item[1]}
+                </option>
+              ))}
+            </select>
+          )}
+        </PortSelectionWrapper>
+
         {/* <button onClick={onClick}>Log</button> */}
         <PianoHolder
           onMouseDown={(event) => {
             // event.stopPropagation();
-            // console.log(event.button);
             setIsMousePressed(event.button);
             setTimeout(() => {
               setIsMousePressed(null);

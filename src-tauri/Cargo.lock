@@ -4,6 +4,7 @@
 name = "WootingMidi"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "env_logger",
  "lazy_static",
  "log",
@@ -2106,9 +2107,11 @@ dependencies = [
 name = "wooting-analog-midi"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "lazy_static",
  "log",
  "midir",
+ "serde",
  "wooting-analog-wrapper",
 ]
 

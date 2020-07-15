@@ -17,6 +17,7 @@ log = "0.4.8"
 env_logger = "0.7.1"
 wooting-analog-midi = { path = "../wooting-analog-midi" }
 lazy_static = "1.4.0"
+anyhow = "1.0"
 
 [target."cfg(windows)".build-dependencies]
 winres = "0.1"
