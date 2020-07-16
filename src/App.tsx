@@ -62,6 +62,7 @@ async function requestConfig(): Promise<AppSettings> {
 }
 
 async function updateSettings(settings: AppSettings): Promise<void> {
+  //We have to pass it through as a string here because for some reason when it tries to deserialize itself it doesn't like the indexes for the keymap obj
   return callAppFunction("updateConfig", { config: JSON.stringify(settings) });
 }
 

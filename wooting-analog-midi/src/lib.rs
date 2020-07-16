@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 const DEVICE_BUFFER_MAX: usize = 5;
-const ANALOG_BUFFER_READ_MAX: usize = 10;
+const ANALOG_BUFFER_READ_MAX: usize = 40;
 const NOTE_ON_MSG: u8 = 0x90;
 const NOTE_OFF_MSG: u8 = 0x80;
 const POLY_AFTERTOUCH_MSG: u8 = 0xA0;
