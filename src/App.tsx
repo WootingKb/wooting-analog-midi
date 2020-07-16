@@ -39,27 +39,30 @@ type PortOption = [number, string, boolean];
 
 type PortOptions = PortOption[];
 
+async function callAppFunction<T>(name: string, args?: any): Promise<T> {
+  return await tauri.promisified<T>({
+    cmd: "function",
+    call: {
+      func: name,
+      ...args,
+    },
+  });
+}
+
 async function getPortOptions(): Promise<PortOptions> {
-  return await tauri
-    .promisified<string>({
-      cmd: "portOptions",
-    })
-    .then((response) => {
-      console.log(response);
-      return JSON.parse(response) as PortOptions;
-    });
+  return callAppFunction("portOptions");
 }
 
 async function selectPort(option: number): Promise<PortOptions> {
-  return await tauri
-    .promisified<string>({
-      cmd: "selectPort",
-      option: option,
-    })
-    .then((response) => {
-      console.log(response);
-      return JSON.parse(response) as PortOptions;
-    });
+  return callAppFunction("selectPort", { option: option });
+}
+
+async function requestConfig(): Promise<AppSettings> {
+  return callAppFunction("requestConfig");
+}
+
+async function updateSettings(settings: AppSettings): Promise<void> {
+  return callAppFunction("updateConfig", { config: JSON.stringify(settings) });
 }
 
 let lastData: MidiUpdate = { data: [] };
@@ -80,9 +83,9 @@ function App() {
   const [appSettings, setAppSettings] = useState<AppSettings | undefined>();
   const [portOptions, setPortOptions] = useState<PortOptions | undefined>();
 
-  function updateSettings(settings: AppSettings) {
+  function settingsChanged(settings: AppSettings) {
     setAppSettings(settings);
-    tauri.invoke({ cmd: "updateConfig", config: JSON.stringify(settings) });
+    updateSettings(settings);
   }
 
   useEffect(() => {
@@ -90,20 +93,13 @@ function App() {
       "init-complete",
       () => {
         console.log("Init complete");
-        tauri
-          .promisified<string>({
-            cmd: "requestConfig",
-          })
-          .then(function (response) {
-            console.log(response);
-            const settings = JSON.parse(response) as AppSettings;
-            console.log(settings);
-            setAppSettings(settings);
+        requestConfig().then(function (settings) {
+          setAppSettings(settings);
 
-            // settings.keymapping[HIDCodes.ArrowUp] = 20;
-            // console.log(settings);
-            // updateSettings(settings);
-          });
+          // settings.keymapping[HIDCodes.ArrowUp] = 20;
+          // console.log(settings);
+          // updateSettings(settings);
+        });
         getPortOptions().then((result) => {
           console.log(result);
           setPortOptions(result);
@@ -137,7 +133,7 @@ function App() {
         if (midiEntry) {
           console.log(`now we can map ${JSON.stringify(midiEntry)}`);
 
-          updateSettings({
+          settingsChanged({
             ...appSettings,
             keymapping: {
               ...appSettings.keymapping,
@@ -157,7 +153,7 @@ function App() {
             break;
           }
         }
-        updateSettings({
+        settingsChanged({
           ...appSettings,
           keymapping: newMapping,
         });

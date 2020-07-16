@@ -12,6 +12,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
 
+use crate::cmd::AppFunction;
 use log::{error, info, warn};
 use std::error::Error;
 use std::fs::OpenOptions;
@@ -23,9 +24,11 @@ use std::time::Duration;
 use tauri::api::path::config_dir;
 use wooting_analog_midi::{FromPrimitive, HIDCodes, MidiService, Note, PortOption, REFRESH_RATE};
 mod cmd;
+use crate::cmd::Cmd;
 use anyhow::{Context, Result};
 use cmd::AppSettings;
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::create_dir;
 use std::io::{Read, Write};
@@ -215,12 +218,12 @@ impl App {
     }
   }
 
-  fn get_config_string(&self) -> String {
-    serde_json::to_string(&self.settings).unwrap()
+  fn get_config_string(&self) -> Value {
+    serde_json::to_value(&self.settings).unwrap()
   }
 
-  fn get_port_options_string(&self) -> String {
-    serde_json::to_string(&self.midi_service.read().unwrap().port_options).unwrap()
+  fn get_port_options_string(&self) -> Value {
+    serde_json::to_value(&self.midi_service.read().unwrap().port_options).unwrap()
   }
 
   fn exec_loop<F: 'static>(&mut self, mut f: F)
@@ -260,6 +263,24 @@ impl App {
       }
     }
     self.midi_service.write().unwrap().uninit();
+  }
+
+  fn process_command(&mut self, command: AppFunction) -> Result<Value> {
+    match command {
+      AppFunction::RequestConfig => Ok(self.get_config_string()),
+      AppFunction::UpdateConfig { config } => {
+        let config = serde_json::from_str(&config[..]).unwrap();
+
+        self.update_config(config);
+        Ok(Value::Null)
+      }
+      AppFunction::PortOptions => Ok(self.get_port_options_string()),
+      AppFunction::SelectPort { option } => Ok(
+        self
+          .select_port(option)
+          .map(|data| serde_json::to_value(&data).unwrap())?,
+      ),
+    }
   }
 }
 
@@ -332,61 +353,18 @@ fn main() {
         Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {
-            RequestConfig { callback, error } => {
-              // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
-              // so you can easily communicate between JS and Rust with promises
-              tauri::execute_promise(
-                _webview,
-                move || {
-                  // println!("{} {:?}", endpoint, body);
-                  // perform an async operation here
-                  // if the returned value is Ok, the promise will be resolved with its value
-                  // if the returned value is Err, the promise will be rejected with its value
-                  // the value is a string that will be eval'd
-                  Ok(APP.read().unwrap().get_config_string())
-                },
-                callback,
-                error,
-              )
-            }
-            UpdateConfig { config } => {
-              let config = serde_json::from_str(&config[..]).unwrap();
-
-              APP.write().unwrap().update_config(config);
-            }
-            PortOptions { callback, error } => {
-              // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
-              // so you can easily communicate between JS and Rust with promises
-              tauri::execute_promise(
-                _webview,
-                move || {
-                  // println!("{} {:?}", endpoint, body);
-                  // perform an async operation here
-                  // if the returned value is Ok, the promise will be resolved with its value
-                  // if the returned value is Err, the promise will be rejected with its value
-                  // the value is a string that will be eval'd
-                  Ok(APP.read().unwrap().get_port_options_string())
-                },
-                callback,
-                error,
-              )
-            }
-            SelectPort {
-              option,
+            Cmd::Function {
+              call,
               callback,
               error,
-            } => tauri::execute_promise(
-              _webview,
-              move || {
-                APP
-                  .write()
-                  .unwrap()
-                  .select_port(option)
-                  .map(|data| serde_json::to_string(&data).unwrap())
-              },
-              callback,
-              error,
-            ),
+            } => {
+              tauri::execute_promise(
+                _webview,
+                move || APP.write().unwrap().process_command(call),
+                callback,
+                error,
+              );
+            }
           }
           Ok(())
         }

@@ -16,20 +16,18 @@ pub struct RequestBody {
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  RequestConfig {
+  Function {
+    call: AppFunction,
     callback: String,
     error: String,
   },
-  UpdateConfig {
-    config: String,
-  },
-  PortOptions {
-    callback: String,
-    error: String,
-  },
-  SelectPort {
-    option: usize,
-    callback: String,
-    error: String,
-  },
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "func", rename_all = "camelCase")]
+pub enum AppFunction {
+  RequestConfig,
+  UpdateConfig { config: String },
+  PortOptions,
+  SelectPort { option: usize },
 }
