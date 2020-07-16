@@ -9,32 +9,26 @@ extern crate wooting_analog_midi;
 extern crate lazy_static;
 // #[macro_use]
 // extern crate crossbeam_channel;
+#[allow(unused_imports)]
 #[macro_use]
 extern crate anyhow;
 
-use crate::cmd::AppFunction;
+#[allow(unused_imports)]
 use log::{error, info, warn};
-use std::error::Error;
-use std::fs::OpenOptions;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::Duration;
-use tauri::api::path::config_dir;
-use wooting_analog_midi::{FromPrimitive, HIDCodes, MidiService, Note, PortOption, REFRESH_RATE};
-mod cmd;
-use crate::cmd::Cmd;
+use wooting_analog_midi::{HIDCodes, MidiService, Note, REFRESH_RATE};
+mod settings;
 use anyhow::{Context, Result};
-use cmd::AppSettings;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use settings::AppSettings;
 use std::collections::HashMap;
-use std::fs::create_dir;
-use std::io::{Read, Write};
-use std::path::PathBuf;
 use std::sync::mpsc::channel;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 
 #[derive(Serialize)]
 struct MidiEntry {
@@ -48,79 +42,23 @@ pub struct MidiUpdate {
   data: Vec<MidiEntry>,
 }
 
-const CONFIG_DIR: &str = "wooting-midi";
-const CONFIG_FILE: &str = "config.json";
-impl AppSettings {
-  fn config_path() -> Result<PathBuf> {
-    let mut config_file = config_dir().context("No config dir!")?;
-    config_file.push(CONFIG_DIR);
-    if !config_file.exists() {
-      create_dir(&config_file)?;
-    }
-    config_file.push(CONFIG_FILE);
-    Ok(config_file)
-  }
-
-  fn load_config() -> Result<AppSettings> {
-    let config_file = Self::config_path()?;
-    let mut file = OpenOptions::new()
-      .read(true)
-      .write(true)
-      .create(true)
-      .open(config_file)?;
-    let mut content: String = String::new();
-    let size = file.read_to_string(&mut content)?;
-    if content.is_empty() {
-      let default = Self::default();
-      file.write_all(&serde_json::to_vec(&default)?[..])?;
-      Ok(default)
-    } else {
-      Ok(serde_json::from_str::<AppSettings>(&content.trim()[..])?)
-    }
-  }
-
-  fn save_config(&self) -> Result<()> {
-    let config_file = Self::config_path()?;
-    info!("Saving to {:?}", config_file);
-    let mut file = OpenOptions::new()
-      .read(true)
-      .write(true)
-      .create(true)
-      .truncate(true)
-      .open(config_file)?;
-    file.write_all(&serde_json::to_vec(&self)?[..])?;
-    Ok(())
-  }
-
-  pub fn get_proper_mapping(&self) -> HashMap<HIDCodes, u8> {
-    self
-      .keymapping
-      .iter()
-      .map(|(key, note)| (HIDCodes::from_u8(*key).unwrap(), *note))
-      .collect()
-  }
+#[derive(Deserialize)]
+#[serde(tag = "cmd", rename_all = "camelCase")]
+pub enum Cmd {
+  Function {
+    call: AppFunction,
+    callback: String,
+    error: String,
+  },
 }
 
-impl Default for AppSettings {
-  fn default() -> Self {
-    Self {
-      keymapping: [
-        (HIDCodes::Q as u8, 57),
-        (HIDCodes::W as u8, 58),
-        (HIDCodes::E as u8, 59),
-        (HIDCodes::R as u8, 60),
-        (HIDCodes::T as u8, 61),
-        (HIDCodes::Y as u8, 62),
-        (HIDCodes::U as u8, 63),
-        (HIDCodes::I as u8, 64),
-        (HIDCodes::O as u8, 65),
-        (HIDCodes::P as u8, 66),
-      ]
-      .iter()
-      .cloned()
-      .collect(),
-    }
-  }
+#[derive(Deserialize)]
+#[serde(tag = "func", rename_all = "camelCase")]
+pub enum AppFunction {
+  RequestConfig,
+  UpdateConfig { config: String },
+  PortOptions,
+  SelectPort { option: usize },
 }
 
 struct App {
@@ -187,7 +125,9 @@ impl App {
                 })
                 .collect(),
             };
-            tx_inner.send(AppEvent::MidiUpdate(event_message));
+            if let Err(e) = tx_inner.send(AppEvent::MidiUpdate(event_message)) {
+              error!("Error while sending App Update, {}", e);
+            }
           }
         }
 
@@ -290,7 +230,7 @@ impl Drop for App {
   }
 }
 
-fn output_err(error: Box<dyn Error>) -> Box<dyn Error> {
+fn output_err<T: std::fmt::Display>(error: T) -> T {
   error!("Error: {}", error);
   error
 }
@@ -347,27 +287,24 @@ fn main() {
         error!("Error emitting event! {}", e);
       }
     })
-    .invoke_handler(move |_webview, arg| {
-      use cmd::Cmd::*;
-      match serde_json::from_str(arg) {
-        Err(e) => Err(e.to_string()),
-        Ok(command) => {
-          match command {
-            Cmd::Function {
-              call,
+    .invoke_handler(move |_webview, arg| match serde_json::from_str(arg) {
+      Err(e) => Err(e.to_string()),
+      Ok(command) => {
+        match command {
+          Cmd::Function {
+            call,
+            callback,
+            error,
+          } => {
+            tauri::execute_promise(
+              _webview,
+              move || APP.write().unwrap().process_command(call),
               callback,
               error,
-            } => {
-              tauri::execute_promise(
-                _webview,
-                move || APP.write().unwrap().process_command(call),
-                callback,
-                error,
-              );
-            }
+            );
           }
-          Ok(())
         }
+        Ok(())
       }
     })
     .build()

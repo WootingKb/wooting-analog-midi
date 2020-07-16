@@ -2,19 +2,20 @@
 // extern crate ctrlc;
 extern crate midir;
 extern crate wooting_analog_wrapper;
+#[allow(unused_imports)]
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
 
+#[allow(unused_imports)]
 use log::{error, info};
 use sdk::SDKResult;
 pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes};
-use std::error::Error;
 use wooting_analog_wrapper as sdk;
 
-use anyhow::{Context, Result};
-use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
+use anyhow::Result;
+use midir::{MidiOutput, MidiOutputConnection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -102,20 +103,25 @@ impl Note {
         }
     }
 
-    fn update_note(&mut self, note: Option<NoteID>, sink: Option<&mut impl NoteSink>) {
+    fn update_note(
+        &mut self,
+        note: Option<NoteID>,
+        sink: Option<&mut impl NoteSink>,
+    ) -> Result<()> {
         if let Some(sink) = sink {
             if let Some(current_note) = self.note_id {
                 if self.pressed {
-                    sink.note_off(current_note, self.velocity);
+                    sink.note_off(current_note, self.velocity)?;
                     self.pressed = false;
                 }
             }
         }
 
         self.note_id = note;
+        Ok(())
     }
 
-    fn update_current_value(&mut self, new_value: f32, sink: &mut impl NoteSink) {
+    fn update_current_value(&mut self, new_value: f32, sink: &mut impl NoteSink) -> Result<()> {
         self.velocity = f32::min(
             f32::max(
                 f32::max(0.0, new_value - self.pressure) * 2.0,
@@ -130,22 +136,23 @@ impl Note {
             if new_value > THRESHOLD {
                 // 'Pressed'
                 if !self.pressed {
-                    sink.note_on(note_id, self.velocity);
+                    sink.note_on(note_id, self.velocity)?;
                     self.pressed = true;
                 } else {
                     // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
                     if AFTERTOUCH {
-                        sink.polyphonic_aftertouch(note_id, self.pressure);
+                        sink.polyphonic_aftertouch(note_id, self.pressure)?;
                     }
                 }
             } else {
                 // 'Not Pressed'
                 if self.pressed {
-                    sink.note_off(note_id, self.velocity);
+                    sink.note_off(note_id, self.velocity)?;
                     self.pressed = false;
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -190,9 +197,9 @@ impl MidiService {
         // self.notes =
         for (key, note) in self.notes.iter_mut() {
             if let Some(note_id) = mapping.get(&key) {
-                note.update_note(Some(*note_id), self.connection.as_mut());
+                note.update_note(Some(*note_id), self.connection.as_mut())?;
             } else {
-                note.update_note(None, self.connection.as_mut())
+                note.update_note(None, self.connection.as_mut())?;
             }
         }
 
@@ -293,9 +300,9 @@ impl MidiService {
         }
     }
 
-    pub fn poll(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn poll(&mut self) -> Result<()> {
         if self.connection.is_none() {
-            Err("No MIDI connection!")?;
+            Err(anyhow!("No MIDI connection!"))?;
         }
 
         let read_result: SDKResult<HashMap<u16, f32>> =
@@ -305,13 +312,13 @@ impl MidiService {
                 for (code, value) in analog_data.iter() {
                     if let Some(hid_code) = HIDCodes::from_u16(*code) {
                         if let Some(note) = self.notes.get_mut(&hid_code) {
-                            note.update_current_value(*value, self.connection.as_mut().unwrap());
+                            note.update_current_value(*value, self.connection.as_mut().unwrap())?;
                         }
                     }
                 }
             }
             Err(e) => {
-                error!("Error reading full buffer, {:?}", e);
+                Err(anyhow!("Error reading full buffer, {:?}", e))?;
             }
         };
         Ok(())
