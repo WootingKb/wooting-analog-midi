@@ -88,7 +88,6 @@ pub struct Note {
     associated_key: HIDCodes,
     pressed: bool,
     velocity: f32,
-    pressure: f32,
 }
 
 impl Note {
@@ -99,7 +98,6 @@ impl Note {
             current_value: 0.0,
             pressed: false,
             velocity: 0.0,
-            pressure: 0.0,
         }
     }
 
@@ -124,13 +122,12 @@ impl Note {
     fn update_current_value(&mut self, new_value: f32, sink: &mut impl NoteSink) -> Result<()> {
         self.velocity = f32::min(
             f32::max(
-                f32::max(0.0, new_value - self.pressure) * 2.0,
+                f32::max(0.0, new_value - self.current_value) * 2.0,
                 self.velocity * 0.9,
             ),
             1.0,
         );
         self.current_value = new_value;
-        self.pressure = new_value;
 
         if let Some(note_id) = self.note_id {
             if new_value > THRESHOLD {
@@ -141,7 +138,7 @@ impl Note {
                 } else {
                     // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
                     if AFTERTOUCH {
-                        sink.polyphonic_aftertouch(note_id, self.pressure)?;
+                        sink.polyphonic_aftertouch(note_id, self.current_value)?;
                     }
                 }
             } else {
@@ -156,12 +153,7 @@ impl Note {
     }
 }
 
-// fn generate_note_mapping(_keymapping: &HashMap<HIDCodes, u8>) -> HashMap<HIDCodes, Note> {
 fn generate_note_mapping() -> HashMap<HIDCodes, Note> {
-    // keymapping
-    //     .iter()
-    //     .map(|(key, note)| (key.clone(), Note::new(key.clone(), *note)))
-    //     .collect()
     (0..255)
         .step_by(1)
         .map(|code| HIDCodes::from_u8(code as u8))
