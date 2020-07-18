@@ -1,5 +1,4 @@
-
-import 'core-js';
+import "core-js";
 import React, { useEffect, useState, useCallback } from "react";
 import logo from "./logo.svg";
 import * as tauri from "tauri/api/tauri";
@@ -123,24 +122,32 @@ function App() {
 
   const midiData = midiState?.data?.sort((a, b) => a.key - b.key) ?? [];
 
-  const [keyMapping, setKeyMapping] = useState<number | null>(null);
+  const [noteMapping, setKeyMapping] = useState<number | null>(null);
 
   // Track if the mouse is pressed so we can avoid playNote triggering with keys
   const [isMousePressed, setIsMousePressed] = useState<number | null>(null);
 
   useEffect(() => {
-    if (appSettings && keyMapping && isMousePressed != null) {
+    if (appSettings && noteMapping && isMousePressed != null) {
       // Left click bind to first pressed key
       if (isMousePressed == 0) {
         const midiEntry = midiData.find((data) => data.value > 0.1);
         if (midiEntry) {
           console.log(`now we can map ${JSON.stringify(midiEntry)}`);
 
+          // Cleanup any existing mappings to this key
+          let newMapping = { ...appSettings.keymapping };
+          for (const x in newMapping) {
+            if (newMapping[x] == noteMapping) {
+              delete newMapping[x];
+            }
+          }
+
           settingsChanged({
             ...appSettings,
             keymapping: {
-              ...appSettings.keymapping,
-              [midiEntry.key]: keyMapping,
+              ...newMapping,
+              [midiEntry.key]: noteMapping,
             },
           });
 
@@ -151,7 +158,7 @@ function App() {
         //right click unbind
         let newMapping = { ...appSettings.keymapping };
         for (const x in newMapping) {
-          if (newMapping[x] == keyMapping) {
+          if (newMapping[x] == noteMapping) {
             delete newMapping[x];
             break;
           }
@@ -164,7 +171,7 @@ function App() {
         setIsMousePressed(null);
       }
     }
-  }, [keyMapping, midiData, isMousePressed]);
+  }, [noteMapping, midiData, isMousePressed]);
 
   function onPortSelectionChanged(choice: number) {
     console.log("Selected " + choice);
@@ -211,8 +218,8 @@ function App() {
             />
           )}
         </PianoHolder>
-        {keyMapping && isMousePressed == 0 && (
-          <div>{`Press a key to bind for MIDI note number ${keyMapping}`}</div>
+        {noteMapping && isMousePressed == 0 && (
+          <div>{`Press a key to bind for MIDI note number ${noteMapping}`}</div>
         )}
       </header>
     </div>
