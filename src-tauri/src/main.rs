@@ -178,9 +178,9 @@ impl App {
     }));
   }
 
-  fn select_port(&mut self, option: usize) -> Result<String> {
+  fn select_port(&mut self, option: usize) -> Result<Value> {
     self.midi_service.write().unwrap().select_port(option)?;
-    Ok(serde_json::to_string(
+    Ok(serde_json::to_value(
       self
         .midi_service
         .read()
@@ -217,8 +217,7 @@ impl App {
       AppFunction::PortOptions => Ok(self.get_port_options_string()),
       AppFunction::SelectPort { option } => Ok(
         self
-          .select_port(option)
-          .map(|data| serde_json::to_value(&data).unwrap())?,
+          .select_port(option)?,
       ),
     }
   }

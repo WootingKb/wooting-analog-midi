@@ -1,5 +1,5 @@
-//@ts-ignore
-import corejs from 'core-js';
+
+import 'core-js';
 import React, { useEffect, useState, useCallback } from "react";
 import logo from "./logo.svg";
 import * as tauri from "tauri/api/tauri";
