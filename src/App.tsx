@@ -1,3 +1,5 @@
+//@ts-ignore
+import corejs from 'core-js';
 import React, { useEffect, useState, useCallback } from "react";
 import logo from "./logo.svg";
 import * as tauri from "tauri/api/tauri";
@@ -44,8 +46,8 @@ async function callAppFunction<T>(name: string, args?: any): Promise<T> {
     cmd: "function",
     call: {
       func: name,
-      ...args,
-    },
+      ...args
+    }
   });
 }
 
