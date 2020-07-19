@@ -7,7 +7,7 @@ import { emit, listen } from "tauri/api/event";
 import "./App.css";
 import * as _ from "lodash";
 import { HIDCodes } from "./HidCodes";
-import { PianoDisplay } from "./components/Piano";
+import { PianoDisplay, MidiDataEntry } from "./components/Piano";
 import styled from "styled-components";
 
 const PianoHolder = styled.div`
@@ -16,24 +16,30 @@ const PianoHolder = styled.div`
   padding: 1em;
 `;
 
-const PortSelectionWrapper = styled.div`
+const Row = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
 `;
 
 interface AppSettings {
-  keymapping: { [key: number]: number };
+  keymapping: { [channel: number]: [HIDCodes, number][] };
 }
 
 export interface MidiEntry {
-  key: HIDCodes;
-  note?: number;
+  note: number;
   value: number;
+  channel: number;
+  pressed: boolean;
+}
+
+interface MidiUpdateEntry {
+  value: number;
+  notes: MidiEntry[];
 }
 
 interface MidiUpdate {
-  data: MidiEntry[];
+  data: { [key: number]: MidiUpdateEntry };
 }
 
 type PortOption = [number, string, boolean];
@@ -45,8 +51,8 @@ async function callAppFunction<T>(name: string, args?: any): Promise<T> {
     cmd: "function",
     call: {
       func: name,
-      ...args
-    }
+      ...args,
+    },
   });
 }
 
@@ -84,6 +90,7 @@ function App() {
   const [midiState, setMidiState] = useState<MidiUpdate | undefined>();
   const [appSettings, setAppSettings] = useState<AppSettings | undefined>();
   const [portOptions, setPortOptions] = useState<PortOptions | undefined>();
+  const [selectedChannel, setSelectedChannel] = useState<number>(0);
 
   function settingsChanged(settings: AppSettings) {
     setAppSettings(settings);
@@ -120,34 +127,41 @@ function App() {
     };
   });
 
-  const midiData = midiState?.data?.sort((a, b) => a.key - b.key) ?? [];
-
   const [noteMapping, setKeyMapping] = useState<number | null>(null);
 
   // Track if the mouse is pressed so we can avoid playNote triggering with keys
   const [isMousePressed, setIsMousePressed] = useState<number | null>(null);
 
   useEffect(() => {
-    if (appSettings && noteMapping && isMousePressed != null) {
+    if (appSettings && midiState && noteMapping && isMousePressed != null) {
       // Left click bind to first pressed key
       if (isMousePressed == 0) {
-        const midiEntry = midiData.find((data) => data.value > 0.1);
-        if (midiEntry) {
-          console.log(`now we can map ${JSON.stringify(midiEntry)}`);
+        let key: HIDCodes | undefined;
+
+        for (const x in midiState.data) {
+          const entry = midiState.data[x];
+          if (entry.value > 0.1) {
+            key = parseInt(x) as HIDCodes;
+            break;
+          }
+        }
+
+        if (key) {
+          console.log(`now we can map ${HIDCodes[key]}`);
 
           // Cleanup any existing mappings to this key
-          let newMapping = { ...appSettings.keymapping };
-          for (const x in newMapping) {
-            if (newMapping[x] == noteMapping) {
-              delete newMapping[x];
-            }
-          }
+          let newMapping = [
+            ...(appSettings.keymapping[selectedChannel] ?? []),
+          ].filter(([_, note]) => note != noteMapping);
+
+          // Insert the new mapping
+          newMapping.push([key, noteMapping]);
 
           settingsChanged({
             ...appSettings,
             keymapping: {
-              ...newMapping,
-              [midiEntry.key]: noteMapping,
+              ...appSettings.keymapping,
+              [selectedChannel]: newMapping,
             },
           });
 
@@ -156,22 +170,21 @@ function App() {
         }
       } else if (isMousePressed == 2) {
         //right click unbind
-        let newMapping = { ...appSettings.keymapping };
-        for (const x in newMapping) {
-          if (newMapping[x] == noteMapping) {
-            delete newMapping[x];
-            break;
-          }
-        }
+        let newMapping = [
+          ...(appSettings.keymapping[selectedChannel] ?? []),
+        ].filter((_, note) => note != noteMapping);
         settingsChanged({
           ...appSettings,
-          keymapping: newMapping,
+          keymapping: {
+            ...appSettings.keymapping,
+            [selectedChannel]: newMapping,
+          },
         });
         setKeyMapping(null);
         setIsMousePressed(null);
       }
     }
-  }, [noteMapping, midiData, isMousePressed]);
+  }, [noteMapping, midiState, isMousePressed]);
 
   function onPortSelectionChanged(choice: number) {
     console.log("Selected " + choice);
@@ -180,10 +193,36 @@ function App() {
     });
   }
 
+  let pianoData: MidiDataEntry[] = [];
+
+  if (midiState && appSettings) {
+    const channelMapping = appSettings.keymapping[selectedChannel];
+    if (channelMapping) {
+      channelMapping.forEach(([key, note_id]) => {
+        const entry = midiState.data[key];
+        // We wanna find a note entry for the currently selected channel and only push it to the Piano if
+        const noteEntry = entry.notes.find(
+          (note) => note.channel == selectedChannel && note.note == note_id
+        );
+        if (noteEntry) {
+          pianoData.push({
+            key,
+            value: entry.value,
+            note: noteEntry,
+          });
+        } else {
+          console.error(
+            "There should be a Note entry in a midi update for something that's mapped!"
+          );
+        }
+      });
+    }
+  }
+
   return (
     <div className="App">
       <header className="App-header">
-        <PortSelectionWrapper>
+        <Row>
           <p>Output Port:</p>
           {portOptions && (
             <select
@@ -199,7 +238,23 @@ function App() {
               ))}
             </select>
           )}
-        </PortSelectionWrapper>
+        </Row>
+
+        <Row>
+          <p>Current Channel:</p>
+          <select
+            value={selectedChannel}
+            onChange={(event) => {
+              setSelectedChannel(parseInt(event.target.value));
+            }}
+          >
+            {[...Array(16).keys()].map((i) => (
+              <option key={i} value={i}>
+                {i}
+              </option>
+            ))}
+          </select>
+        </Row>
 
         {/* <button onClick={onClick}>Log</button> */}
         <PianoHolder
@@ -211,11 +266,8 @@ function App() {
             }, 3000);
           }}
         >
-          {midiState && (
-            <PianoDisplay
-              midiData={midiData.filter((data) => data.note)}
-              changeMidiMap={setKeyMapping}
-            />
+          {pianoData && (
+            <PianoDisplay midiData={pianoData} changeMidiMap={setKeyMapping} />
           )}
         </PianoHolder>
         {noteMapping && isMousePressed == 0 && (

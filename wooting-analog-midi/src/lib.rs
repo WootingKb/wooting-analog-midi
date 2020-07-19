@@ -31,7 +31,10 @@ const AFTERTOUCH: bool = true;
 pub const REFRESH_RATE: f32 = 100.0; //Hz
 
 // NoteID Reference: https://newt.phys.unsw.edu.au/jw/notes.html
-type NoteID = u8;
+pub type NoteID = u8;
+
+pub type Channel = u8;
+
 // lazy_static! {
 //     static ref KEYMAPPING: HashMap<HIDCodes, NoteID> = {
 //         [
@@ -53,27 +56,37 @@ type NoteID = u8;
 // }
 trait NoteSink {
     // TODO: Return Result
-    fn note_on(&mut self, note_id: NoteID, velocity: f32) -> Result<()>;
-    fn note_off(&mut self, note_id: NoteID, velocity: f32) -> Result<()>;
-    fn polyphonic_aftertouch(&mut self, note_id: NoteID, pressure: f32) -> Result<()>;
+    fn note_on(&mut self, note_id: NoteID, velocity: f32, channel: Channel) -> Result<()>;
+    fn note_off(&mut self, note_id: NoteID, velocity: f32, channel: Channel) -> Result<()>;
+    fn polyphonic_aftertouch(
+        &mut self,
+        note_id: NoteID,
+        pressure: f32,
+        channel: Channel,
+    ) -> Result<()>;
 }
 
 impl NoteSink for MidiOutputConnection {
-    fn note_on(&mut self, note_id: NoteID, velocity: f32) -> Result<()> {
+    fn note_on(&mut self, note_id: NoteID, velocity: f32, channel: Channel) -> Result<()> {
         let vbyte = (f32::min(velocity, 1.0) * 127.0) as u8;
-        self.send(&[NOTE_ON_MSG, note_id, vbyte])?;
+        self.send(&[NOTE_ON_MSG | channel, note_id, vbyte])?;
         Ok(())
     }
 
-    fn note_off(&mut self, note_id: NoteID, velocity: f32) -> Result<()> {
+    fn note_off(&mut self, note_id: NoteID, velocity: f32, channel: Channel) -> Result<()> {
         let vbyte = (f32::min(velocity, 1.0) * 127.0) as u8;
-        self.send(&[NOTE_OFF_MSG, note_id, vbyte])?;
+        self.send(&[NOTE_OFF_MSG | channel, note_id, vbyte])?;
         Ok(())
     }
 
-    fn polyphonic_aftertouch(&mut self, note_id: NoteID, pressure: f32) -> Result<()> {
+    fn polyphonic_aftertouch(
+        &mut self,
+        note_id: NoteID,
+        pressure: f32,
+        channel: Channel,
+    ) -> Result<()> {
         self.send(&[
-            POLY_AFTERTOUCH_MSG,
+            POLY_AFTERTOUCH_MSG | channel,
             note_id,
             (f32::min(pressure, 1.0) * 127.0) as u8,
         ])?;
@@ -83,83 +96,135 @@ impl NoteSink for MidiOutputConnection {
 
 #[derive(Debug)]
 pub struct Note {
-    pub current_value: f32,
-    pub note_id: Option<NoteID>,
-    associated_key: HIDCodes,
-    pressed: bool,
-    velocity: f32,
+    pub note_id: NoteID,
+    pub pressed: bool,
+    pub velocity: f32,
+    pub channel: Channel,
 }
 
 impl Note {
-    pub fn new(key: HIDCodes, note: Option<NoteID>) -> Note {
+    pub fn new(channel: Channel, note: NoteID) -> Note {
         Note {
-            associated_key: key,
             note_id: note,
-            current_value: 0.0,
             pressed: false,
             velocity: 0.0,
+            channel,
         }
     }
 
-    fn update_note(
+    // fn update_note(
+    //     &mut self,
+    //     note: Option<NoteID>,
+    //     sink: Option<&mut impl NoteSink>,
+    // ) -> Result<()> {
+    //     if let Some(sink) = sink {
+    //         if let Some(current_note) = self.note_id {
+    //             if self.pressed {
+    //                 sink.note_off(current_note, self.velocity)?;
+    //                 self.pressed = false;
+    //             }
+    //         }
+    //     }
+
+    //     self.note_id = note;
+    //     Ok(())
+    // }
+
+    fn update_current_value(
         &mut self,
-        note: Option<NoteID>,
-        sink: Option<&mut impl NoteSink>,
+        previous_value: f32,
+        new_value: f32,
+        sink: &mut impl NoteSink,
     ) -> Result<()> {
-        if let Some(sink) = sink {
-            if let Some(current_note) = self.note_id {
-                if self.pressed {
-                    sink.note_off(current_note, self.velocity)?;
-                    self.pressed = false;
-                }
-            }
-        }
-
-        self.note_id = note;
-        Ok(())
-    }
-
-    fn update_current_value(&mut self, new_value: f32, sink: &mut impl NoteSink) -> Result<()> {
         self.velocity = f32::min(
             f32::max(
-                f32::max(0.0, new_value - self.current_value) * 2.0,
+                f32::max(0.0, new_value - previous_value) * 2.0,
                 self.velocity * 0.9,
             ),
             1.0,
         );
-        self.current_value = new_value;
 
-        if let Some(note_id) = self.note_id {
-            if new_value > THRESHOLD {
-                // 'Pressed'
-                if !self.pressed {
-                    sink.note_on(note_id, self.velocity)?;
-                    self.pressed = true;
-                } else {
-                    // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
-                    if AFTERTOUCH {
-                        sink.polyphonic_aftertouch(note_id, self.current_value)?;
-                    }
-                }
+        if new_value > THRESHOLD {
+            // 'Pressed'
+            if !self.pressed {
+                sink.note_on(self.note_id, self.velocity, self.channel)?;
+                self.pressed = true;
             } else {
-                // 'Not Pressed'
-                if self.pressed {
-                    sink.note_off(note_id, self.velocity)?;
-                    self.pressed = false;
+                // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
+                if AFTERTOUCH {
+                    sink.polyphonic_aftertouch(self.note_id, new_value, self.channel)?;
                 }
+            }
+        } else {
+            // 'Not Pressed'
+            if self.pressed {
+                sink.note_off(self.note_id, self.velocity, self.channel)?;
+                self.pressed = false;
             }
         }
         Ok(())
     }
+
+    fn drop(&mut self, sink: &mut Option<impl NoteSink>) -> Result<()> {
+        if let Some(sink) = sink {
+            if self.pressed {
+                sink.note_off(self.note_id, self.velocity, self.channel)?;
+                self.pressed = false;
+            }
+        }
+
+        Ok(())
+    }
 }
 
-fn generate_note_mapping() -> HashMap<HIDCodes, Note> {
+#[derive(Debug)]
+pub struct Key {
+    pub notes: Vec<Note>,
+    pub current_value: f32,
+}
+
+impl Key {
+    fn new() -> Self {
+        Self {
+            notes: vec![],
+            current_value: 0.0,
+        }
+    }
+
+    fn update_value(&mut self, new_value: f32, sink: &mut impl NoteSink) -> Result<()> {
+        for note in self.notes.iter_mut() {
+            note.update_current_value(self.current_value, new_value, sink)?;
+        }
+
+        self.current_value = new_value;
+
+        Ok(())
+    }
+
+    fn update_mappings(
+        &mut self,
+        mappings: &Vec<(Channel, NoteID)>,
+        sink: &mut Option<impl NoteSink>,
+    ) -> Result<()> {
+        for mut note in self.notes.drain(..) {
+            note.drop(sink)?;
+        }
+
+        for (channel, note_id) in mappings.iter() {
+            self.notes.push(Note::new(*channel, *note_id));
+        }
+
+        Ok(())
+    }
+}
+
+fn generate_note_mapping() -> HashMap<HIDCodes, Key> {
     (0..255)
         .step_by(1)
         .map(|code| HIDCodes::from_u8(code as u8))
         .filter(|code| code.is_some())
         .map(|code| code.unwrap())
-        .map(|code| (code.clone(), Note::new(code, None)))
+        .map(|code| (code.clone(), Key::new()))
         .collect()
 }
 
@@ -169,10 +234,10 @@ pub struct PortOption(usize, String, bool);
 pub struct MidiService {
     pub port_options: Option<Vec<PortOption>>,
     connection: Option<MidiOutputConnection>,
-    pub notes: HashMap<HIDCodes, Note>,
+    pub keys: HashMap<HIDCodes, Key>,
 }
 
-//TODO: Determine if this is safe or a different solution is required
+//TODO: Determine if this is safe (LUL imagine saying it may be safe when it literally says unsafe) or a different solution is required
 unsafe impl Send for MidiService {}
 unsafe impl Sync for MidiService {}
 
@@ -181,20 +246,23 @@ impl MidiService {
         MidiService {
             port_options: None,
             connection: None,
-            notes: generate_note_mapping(),
+            keys: generate_note_mapping(),
         }
     }
 
-    pub fn update_mapping(&mut self, mapping: &HashMap<HIDCodes, NoteID>) -> Result<()> {
+    pub fn update_mapping(
+        &mut self,
+        mapping: &HashMap<HIDCodes, Vec<(Channel, NoteID)>>,
+    ) -> Result<()> {
         // self.notes =
-        for (key, note) in self.notes.iter_mut() {
-            if let Some(note_id) = mapping.get(&key) {
-                note.update_note(Some(*note_id), self.connection.as_mut())?;
+        let empty_mapping = vec![];
+        for (key_id, key) in self.keys.iter_mut() {
+            if let Some(mappings) = mapping.get(&key_id) {
+                key.update_mappings(mappings, &mut self.connection)?;
             } else {
-                note.update_note(None, self.connection.as_mut())?;
+                key.update_mappings(&empty_mapping, &mut self.connection)?;
             }
         }
-
         Ok(())
     }
 
@@ -244,6 +312,7 @@ impl MidiService {
     }
 
     pub fn select_port(&mut self, option: usize) -> Result<()> {
+        //TODO: Deal with the case where the port list has changed since the `port_options` was generated
         if let Some(options) = &self.port_options {
             if option >= options.len() {
                 return Err(anyhow!("Port option out of range!"));
@@ -303,14 +372,14 @@ impl MidiService {
             Ok(analog_data) => {
                 for (code, value) in analog_data.iter() {
                     if let Some(hid_code) = HIDCodes::from_u16(*code) {
-                        if let Some(note) = self.notes.get_mut(&hid_code) {
-                            note.update_current_value(*value, self.connection.as_mut().unwrap())?;
+                        if let Some(key) = self.keys.get_mut(&hid_code) {
+                            key.update_value(*value, self.connection.as_mut().unwrap())?;
                         }
                     }
                 }
             }
             Err(e) => {
-                Err(anyhow!("Error reading full buffer, {:?}", e))?;
+                bail!("Error reading full buffer, {:?}", e);
             }
         };
         Ok(())

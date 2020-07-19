@@ -8,11 +8,12 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use tauri::api::path::config_dir;
-use wooting_analog_midi::{FromPrimitive, HIDCodes};
+use wooting_analog_midi::{Channel, FromPrimitive, HIDCodes, NoteID};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AppSettings {
-  pub keymapping: HashMap<u8, u8>,
+  //Channel -> [(key, note)]
+  pub keymapping: HashMap<Channel, Vec<(u8, NoteID)>>,
 }
 
 const CONFIG_DIR: &str = "wooting-midi";
@@ -58,31 +59,56 @@ impl AppSettings {
     file.write_all(&serde_json::to_vec(&self)?[..])?;
     Ok(())
   }
+  // Channel -> [(key, note)] => key -> [(channel, note)]
+  pub fn get_proper_mapping(&self) -> HashMap<HIDCodes, Vec<(Channel, NoteID)>> {
+    let mut mapping = HashMap::new();
 
-  pub fn get_proper_mapping(&self) -> HashMap<HIDCodes, u8> {
-    self
-      .keymapping
-      .iter()
-      .map(|(key, note)| (HIDCodes::from_u8(*key).unwrap(), *note))
-      .collect()
+    for (chan, mappings) in self.keymapping.iter() {
+      for (key, note) in mappings.iter() {
+        if let Some(hid_key) = HIDCodes::from_u8(*key) {
+          // Try and get the vec if it already is present, if not creat it
+          let key_mappings = {
+            if let Some(m) = mapping.get_mut(&hid_key) {
+              m
+            } else {
+              mapping.insert(hid_key.clone(), vec![]);
+              mapping.get_mut(&hid_key).unwrap()
+            }
+          };
+
+          key_mappings.push((chan.clone(), note.clone()));
+        }
+      }
+    }
+
+    // self
+    //   .keymapping
+    //   .iter()
+    //   .map(|(key, note)| (HIDCodes::from_u8(*key).unwrap(), *note))
+    //   .collect();
+
+    mapping
   }
 }
 
 impl Default for AppSettings {
   fn default() -> Self {
     Self {
-      keymapping: [
-        (HIDCodes::Q as u8, 57),
-        (HIDCodes::W as u8, 58),
-        (HIDCodes::E as u8, 59),
-        (HIDCodes::R as u8, 60),
-        (HIDCodes::T as u8, 61),
-        (HIDCodes::Y as u8, 62),
-        (HIDCodes::U as u8, 63),
-        (HIDCodes::I as u8, 64),
-        (HIDCodes::O as u8, 65),
-        (HIDCodes::P as u8, 66),
-      ]
+      keymapping: [(
+        0,
+        vec![
+          (HIDCodes::A as u8, 57),
+          (HIDCodes::W as u8, 58),
+          (HIDCodes::S as u8, 59),
+          (HIDCodes::D as u8, 60),
+          (HIDCodes::R as u8, 61),
+          (HIDCodes::F as u8, 62),
+          (HIDCodes::T as u8, 63),
+          (HIDCodes::G as u8, 64),
+          (HIDCodes::H as u8, 65),
+          (HIDCodes::U as u8, 66),
+        ],
+      )]
       .iter()
       .cloned()
       .collect(),

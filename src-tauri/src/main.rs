@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::Duration;
-use wooting_analog_midi::{HIDCodes, MidiService, Note, REFRESH_RATE};
+use wooting_analog_midi::{Channel, MidiService, NoteID, REFRESH_RATE};
 mod settings;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -32,14 +32,21 @@ use std::sync::mpsc::Receiver;
 
 #[derive(Serialize)]
 struct MidiEntry {
-  key: u8,
-  note: Option<u8>,
+  note: NoteID,
+  velocity: f32,
+  channel: Channel,
+  pressed: bool,
+}
+
+#[derive(Serialize)]
+struct MidiUpdateEntry {
   value: f32,
+  notes: Vec<MidiEntry>,
 }
 
 #[derive(Serialize)]
 pub struct MidiUpdate {
-  data: Vec<MidiEntry>,
+  data: HashMap<u8, MidiUpdateEntry>,
 }
 
 #[derive(Deserialize)]
@@ -108,17 +115,28 @@ impl App {
           .is_ok()
         {
           if (iter_count % (REFRESH_RATE as u32 / MIDI_UPDATE_RATE)) == 0 {
-            let notes: &HashMap<HIDCodes, Note> = &midi_service_inner.read().unwrap().notes;
+            let keys = &midi_service_inner.read().unwrap().keys;
             let event_message = MidiUpdate {
-              data: notes
+              data: keys
                 .iter()
-                .filter_map(|(key, note)| {
-                  if note.note_id.is_some() || note.current_value > 0.0 {
-                    Some(MidiEntry {
-                      key: key.clone() as u8,
-                      note: note.note_id,
-                      value: note.current_value,
-                    })
+                .filter_map(|(key_id, key)| {
+                  if key.notes.len() > 0 || key.current_value > 0.0 {
+                    Some((
+                      key_id.clone() as u8,
+                      MidiUpdateEntry {
+                        value: key.current_value,
+                        notes: key
+                          .notes
+                          .iter()
+                          .map(|note| MidiEntry {
+                            note: note.note_id,
+                            velocity: note.velocity,
+                            channel: note.channel,
+                            pressed: note.pressed,
+                          })
+                          .collect(),
+                      },
+                    ))
                   } else {
                     None
                   }
@@ -215,10 +233,7 @@ impl App {
         Ok(Value::Null)
       }
       AppFunction::PortOptions => Ok(self.get_port_options_string()),
-      AppFunction::SelectPort { option } => Ok(
-        self
-          .select_port(option)?,
-      ),
+      AppFunction::SelectPort { option } => Ok(self.select_port(option)?),
     }
   }
 }
