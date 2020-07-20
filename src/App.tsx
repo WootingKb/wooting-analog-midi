@@ -201,7 +201,7 @@ function App() {
       channelMapping.forEach(([key, note_id]) => {
         const entry = midiState.data[key];
         // We wanna find a note entry for the currently selected channel and only push it to the Piano if
-        const noteEntry = entry.notes.find(
+        const noteEntry = entry.notes?.find(
           (note) => note.channel == selectedChannel && note.note == note_id
         );
         if (noteEntry) {
