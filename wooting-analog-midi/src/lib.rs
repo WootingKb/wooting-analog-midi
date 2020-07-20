@@ -25,37 +25,21 @@ const NOTE_ON_MSG: u8 = 0x90;
 const NOTE_OFF_MSG: u8 = 0x80;
 const POLY_AFTERTOUCH_MSG: u8 = 0xA0;
 // const VELOCITY: u8 = 0x64;
+// The analog threshold at which we consider a note being turned on
 const THRESHOLD: f32 = 0.1;
+// What counts as a key being pressed. Currently used for modifier press detection
+const ACTUATION_POINT: f32 = 0.2;
+const MODIFIER_KEY: HIDCodes = HIDCodes::LeftShift;
+const MODIFIER_NOTE_SHIFT: u8 = 12;
 const AFTERTOUCH: bool = true;
 // How many times a second we'll check for updates on how much keys are pressed
 pub const REFRESH_RATE: f32 = 100.0; //Hz
 
 // NoteID Reference: https://newt.phys.unsw.edu.au/jw/notes.html
 pub type NoteID = u8;
-
 pub type Channel = u8;
 
-// lazy_static! {
-//     static ref KEYMAPPING: HashMap<HIDCodes, NoteID> = {
-//         [
-//             (HIDCodes::Q, 57),
-//             (HIDCodes::W, 58),
-//             (HIDCodes::E, 59),
-//             (HIDCodes::R, 60),
-//             (HIDCodes::T, 61),
-//             (HIDCodes::Y, 62),
-//             (HIDCodes::U, 63),
-//             (HIDCodes::I, 64),
-//             (HIDCodes::O, 65),
-//             (HIDCodes::P, 66),
-//         ]
-//         .iter()
-//         .cloned()
-//         .collect()
-//     };
-// }
 trait NoteSink {
-    // TODO: Return Result
     fn note_on(&mut self, note_id: NoteID, velocity: f32, channel: Channel) -> Result<()>;
     fn note_off(&mut self, note_id: NoteID, velocity: f32, channel: Channel) -> Result<()>;
     fn polyphonic_aftertouch(
@@ -98,6 +82,7 @@ impl NoteSink for MidiOutputConnection {
 pub struct Note {
     pub note_id: NoteID,
     pub pressed: bool,
+    modifier_active: bool,
     pub velocity: f32,
     pub channel: Channel,
 }
@@ -108,33 +93,26 @@ impl Note {
             note_id: note,
             pressed: false,
             velocity: 0.0,
+            modifier_active: false,
             channel,
         }
     }
 
-    // fn update_note(
-    //     &mut self,
-    //     note: Option<NoteID>,
-    //     sink: Option<&mut impl NoteSink>,
-    // ) -> Result<()> {
-    //     if let Some(sink) = sink {
-    //         if let Some(current_note) = self.note_id {
-    //             if self.pressed {
-    //                 sink.note_off(current_note, self.velocity)?;
-    //                 self.pressed = false;
-    //             }
-    //         }
-    //     }
-
-    //     self.note_id = note;
-    //     Ok(())
-    // }
+    fn get_effective_note(&self) -> NoteID {
+        self.note_id
+            + (if self.modifier_active {
+                MODIFIER_NOTE_SHIFT
+            } else {
+                0
+            })
+    }
 
     fn update_current_value(
         &mut self,
         previous_value: f32,
         new_value: f32,
         sink: &mut impl NoteSink,
+        modifer_pressed: bool,
     ) -> Result<()> {
         self.velocity = f32::min(
             f32::max(
@@ -143,32 +121,41 @@ impl Note {
             ),
             1.0,
         );
+        // If the modifier pressed state has changed we need to make sure we turn the current note off because the note id will be changed
+        if modifer_pressed != self.modifier_active {
+            if self.pressed {
+                sink.note_off(self.get_effective_note(), self.velocity, self.channel)?;
+                self.pressed = false;
+            }
+        }
+        self.modifier_active = modifer_pressed;
 
         if new_value > THRESHOLD {
             // 'Pressed'
             if !self.pressed {
-                sink.note_on(self.note_id, self.velocity, self.channel)?;
+                sink.note_on(self.get_effective_note(), self.velocity, self.channel)?;
                 self.pressed = true;
             } else {
                 // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
                 if AFTERTOUCH {
-                    sink.polyphonic_aftertouch(self.note_id, new_value, self.channel)?;
+                    sink.polyphonic_aftertouch(self.get_effective_note(), new_value, self.channel)?;
                 }
             }
         } else {
             // 'Not Pressed'
             if self.pressed {
-                sink.note_off(self.note_id, self.velocity, self.channel)?;
+                sink.note_off(self.get_effective_note(), self.velocity, self.channel)?;
                 self.pressed = false;
             }
         }
+
         Ok(())
     }
 
     fn drop(&mut self, sink: &mut Option<impl NoteSink>) -> Result<()> {
         if let Some(sink) = sink {
             if self.pressed {
-                sink.note_off(self.note_id, self.velocity, self.channel)?;
+                sink.note_off(self.get_effective_note(), self.velocity, self.channel)?;
                 self.pressed = false;
             }
         }
@@ -191,9 +178,14 @@ impl Key {
         }
     }
 
-    fn update_value(&mut self, new_value: f32, sink: &mut impl NoteSink) -> Result<()> {
+    fn update_value(
+        &mut self,
+        new_value: f32,
+        sink: &mut impl NoteSink,
+        modifer_pressed: bool,
+    ) -> Result<()> {
         for note in self.notes.iter_mut() {
-            note.update_current_value(self.current_value, new_value, sink)?;
+            note.update_current_value(self.current_value, new_value, sink, modifer_pressed)?;
         }
 
         self.current_value = new_value;
@@ -238,6 +230,7 @@ pub struct MidiService {
 }
 
 //TODO: Determine if this is safe (LUL imagine saying it may be safe when it literally says unsafe) or a different solution is required
+// Tbf haven't ran into any issues yet, so might be okay
 unsafe impl Send for MidiService {}
 unsafe impl Sync for MidiService {}
 
@@ -370,10 +363,16 @@ impl MidiService {
             sdk::read_full_buffer(ANALOG_BUFFER_READ_MAX);
         match read_result.0 {
             Ok(analog_data) => {
+                let modifier_pressed =
+                    (*analog_data.get(&(MODIFIER_KEY as u16)).unwrap_or(&0.0)) >= ACTUATION_POINT;
                 for (code, value) in analog_data.iter() {
                     if let Some(hid_code) = HIDCodes::from_u16(*code) {
                         if let Some(key) = self.keys.get_mut(&hid_code) {
-                            key.update_value(*value, self.connection.as_mut().unwrap())?;
+                            key.update_value(
+                                *value,
+                                self.connection.as_mut().unwrap(),
+                                modifier_pressed,
+                            )?;
                         }
                     }
                 }
