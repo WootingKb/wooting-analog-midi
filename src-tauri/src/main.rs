@@ -273,7 +273,7 @@ fn main() {
     .setup(move |webview, _source| {
       if !setup {
         setup = true;
-        let handle = webview.handle();
+        let mut handle = webview.as_mut();
         let event_receiver = APP.write().unwrap().init().unwrap();
 
         APP.write().unwrap().exec_loop(move || {
@@ -284,7 +284,7 @@ fn main() {
             match event {
               AppEvent::MidiUpdate(update) => {
                 if let Err(e) = tauri::event::emit(
-                  &handle,
+                  &mut handle,
                   String::from("midi-update"),
                   Some(serde_json::to_string(&update).unwrap()),
                 ) {
@@ -295,9 +295,12 @@ fn main() {
           }
         })
       }
-      let handle = webview.handle();
-      if let Err(e) = tauri::event::emit(&handle, String::from("init-complete"), Option::<()>::None)
-      {
+      let mut handle = webview.as_mut();
+      if let Err(e) = tauri::event::emit(
+        &mut handle,
+        String::from("init-complete"),
+        Option::<()>::None,
+      ) {
         error!("Error emitting event! {}", e);
       }
     })
