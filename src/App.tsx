@@ -127,7 +127,7 @@ function App() {
     };
   });
 
-  const [noteMapping, setKeyMapping] = useState<number | null>(null);
+  const [noteMapping, setNoteMapping] = useState<number | null>(null);
 
   // Track if the mouse is pressed so we can avoid playNote triggering with keys
   const [isMousePressed, setIsMousePressed] = useState<number | null>(null);
@@ -165,14 +165,14 @@ function App() {
             },
           });
 
-          setKeyMapping(null);
+          setNoteMapping(null);
           setIsMousePressed(null);
         }
       } else if (isMousePressed == 2) {
         //right click unbind
         let newMapping = [
           ...(appSettings.keymapping[selectedChannel] ?? []),
-        ].filter((_, note) => note != noteMapping);
+        ].filter(([_, note]) => note != noteMapping);
         settingsChanged({
           ...appSettings,
           keymapping: {
@@ -180,7 +180,7 @@ function App() {
             [selectedChannel]: newMapping,
           },
         });
-        setKeyMapping(null);
+        setNoteMapping(null);
         setIsMousePressed(null);
       }
     }
@@ -267,7 +267,7 @@ function App() {
           }}
         >
           {pianoData && (
-            <PianoDisplay midiData={pianoData} changeMidiMap={setKeyMapping} />
+            <PianoDisplay midiData={pianoData} changeMidiMap={setNoteMapping} />
           )}
         </PianoHolder>
         {noteMapping && isMousePressed == 0 && (
