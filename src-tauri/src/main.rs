@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::Duration;
-use wooting_analog_midi::{Channel, MidiService, NoteID, REFRESH_RATE};
+use wooting_analog_midi::{Channel, MidiService, NoteID};
 mod settings;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -114,7 +114,7 @@ impl App {
           .map_err(output_err)
           .is_ok()
         {
-          if (iter_count % (REFRESH_RATE as u32 / MIDI_UPDATE_RATE)) == 0 {
+          if (iter_count % (MIDI_UPDATE_RATE)) == 0 {
             let keys = &midi_service_inner.read().unwrap().keys;
             let event_message = MidiUpdate {
               data: keys
@@ -150,7 +150,7 @@ impl App {
         }
 
         iter_count += 1;
-        sleep(Duration::from_secs_f32(1.0 / REFRESH_RATE))
+        sleep(Duration::from_secs_f32(1.0 / 100.0))
       }
     }));
 
@@ -261,7 +261,7 @@ lazy_static! {
   static ref APP: Arc<RwLock<App>> = Arc::new(RwLock::new(App::new()));
 }
 
-pub const MIDI_UPDATE_RATE: u32 = 15; //Hz
+pub const MIDI_UPDATE_RATE: u32 = 500; //Hz
 
 fn main() {
   if let Err(e) = env_logger::try_init() {

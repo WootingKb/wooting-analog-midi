@@ -19,8 +19,8 @@ use midir::{MidiOutput, MidiOutputConnection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const DEVICE_BUFFER_MAX: usize = 5;
-const ANALOG_BUFFER_READ_MAX: usize = 40;
+const DEVICE_BUFFER_MAX: usize = 50;
+const ANALOG_BUFFER_READ_MAX: usize = 300;
 const NOTE_ON_MSG: u8 = 0x90;
 const NOTE_OFF_MSG: u8 = 0x80;
 const POLY_AFTERTOUCH_MSG: u8 = 0xA0;
@@ -30,10 +30,10 @@ const THRESHOLD: f32 = 0.1;
 // What counts as a key being pressed. Currently used for modifier press detection
 const ACTUATION_POINT: f32 = 0.2;
 const MODIFIER_KEY: HIDCodes = HIDCodes::LeftShift;
-const MODIFIER_NOTE_SHIFT: u8 = 12;
+const MODIFIER_NOTE_SHIFT: u8 = 1;
 const AFTERTOUCH: bool = true;
 // How many times a second we'll check for updates on how much keys are pressed
-pub const REFRESH_RATE: f32 = 100.0; //Hz
+//pub const REFRESH_RATE: f32 = 10.0; //Hz
 
 // NoteID Reference: https://newt.phys.unsw.edu.au/jw/notes.html
 pub type NoteID = u8;
@@ -117,7 +117,7 @@ impl Note {
         self.velocity = f32::min(
             f32::max(
                 f32::max(0.0, new_value - previous_value) * 2.0,
-                self.velocity * 0.9,
+                self.velocity * 0.001,
             ),
             1.0,
         );
