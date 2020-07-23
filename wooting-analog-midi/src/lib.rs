@@ -11,7 +11,7 @@ extern crate anyhow;
 #[allow(unused_imports)]
 use log::{error, info};
 use sdk::SDKResult;
-pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes};
+pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes, ToPrimitive};
 use wooting_analog_wrapper as sdk;
 
 use anyhow::Result;
@@ -137,7 +137,7 @@ impl Note {
                 self.pressed = true;
             } else {
                 // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
-                if AFTERTOUCH && new_value > previous_value {
+                if AFTERTOUCH && new_value != previous_value {
                     sink.polyphonic_aftertouch(self.get_effective_note(), new_value, self.channel)?;
                 }
             }
@@ -363,8 +363,10 @@ impl MidiService {
             sdk::read_full_buffer(ANALOG_BUFFER_READ_MAX);
         match read_result.0 {
             Ok(analog_data) => {
-                let modifier_pressed =
-                    (*analog_data.get(&(MODIFIER_KEY as u16)).unwrap_or(&0.0)) >= ACTUATION_POINT;
+                let modifier_pressed = (*analog_data
+                    .get(&MODIFIER_KEY.to_u16().unwrap())
+                    .unwrap_or(&0.0))
+                    >= ACTUATION_POINT;
                 for (code, value) in analog_data.iter() {
                     if let Some(hid_code) = HIDCodes::from_u16(*code) {
                         if let Some(key) = self.keys.get_mut(&hid_code) {

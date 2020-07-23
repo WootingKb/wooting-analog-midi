@@ -416,12 +416,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
 
 [[package]]
-name = "enum_primitive"
-version = "0.1.1"
+name = "enum-primitive-derive"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be4551092f4d519593039259a9ed8daedf0da12e5109c5280338073eaeb81180"
+checksum = "5f52288f9a7ebb08959188872b58e7eaa12af9cb47da8e94158e16da7e143340"
 dependencies = [
- "num-traits 0.1.43",
+ "num-traits 0.2.12",
+ "quote 1.0.7",
+ "syn 1.0.35",
 ]
 
 [[package]]
@@ -439,9 +441,9 @@ dependencies = [
 
 [[package]]
 name = "envmnt"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dad160daebf530422640d9496277681d6a2caa3172ec8fd2a315a122829319b"
+checksum = "a2d328fc287c61314c4a61af7cfdcbd7e678e39778488c7cb13ec133ce0f4059"
 dependencies = [
  "fsio",
  "indexmap",
@@ -454,29 +456,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d32e9bd16cc02eae7db7ef620b392808b89f6a5e16bb3497d159c6b92a0f4f86"
 dependencies = [
  "backtrace",
- "failure_derive",
-]
-
-[[package]]
-name = "failure_derive"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa4da3c766cd7a0db8242e326e9e4e081edd567072893ed320008189715366a4"
-dependencies = [
- "proc-macro2",
- "quote 1.0.7",
- "syn 1.0.35",
- "synstructure",
 ]
 
 [[package]]
 name = "ffi-support"
-version = "0.3.5"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efee06d8ac3e85a6e9759a0ed2682235a70832ebe10953849b92cdced8688660"
+checksum = "087be066eb6e85d7150f0c5400018a32802f99d688b2d3868c526f7bbfe17960"
 dependencies = [
- "failure",
- "failure_derive",
  "lazy_static",
  "log",
 ]
@@ -725,9 +712,9 @@ dependencies = [
 
 [[package]]
 name = "midir"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7981379434b2dd3862a41b052300d30828a88a0c467df7adde6ebed69c649345"
+checksum = "b3d79fd772d5d51036ef4a0bc143c8272ec6b76cf4915c4e31af9bde3011eb43"
 dependencies = [
  "alsa",
  "bitflags 1.2.1",
@@ -1351,18 +1338,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "synstructure"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b834f2d66f734cb897113e34aaff2f1ab4719ca946f9a7358dba8f8064148701"
-dependencies = [
- "proc-macro2",
- "quote 1.0.7",
- "syn 1.0.35",
- "unicode-xid 0.2.1",
-]
-
-[[package]]
 name = "sysinfo"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1846,11 +1821,12 @@ dependencies = [
 [[package]]
 name = "wooting-analog-common"
 version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#7eaa676ed22c9bce54eaa86f90c022db704f2208"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#539de2f95ed7c62e89601fa23f876dfe0da99634"
 dependencies = [
- "enum_primitive",
+ "enum-primitive-derive",
  "ffi-support",
  "log",
+ "num-traits 0.1.43",
 ]
 
 [[package]]
@@ -1883,7 +1859,7 @@ dependencies = [
 [[package]]
 name = "wooting-analog-wrapper"
 version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#7eaa676ed22c9bce54eaa86f90c022db704f2208"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#539de2f95ed7c62e89601fa23f876dfe0da99634"
 dependencies = [
  "ctrlc",
  "lazy_static",
