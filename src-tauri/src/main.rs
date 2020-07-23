@@ -30,6 +30,9 @@ use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
 
+// This defines the rate at which midi updates are sent to the UI
+pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
+
 #[derive(Serialize)]
 struct MidiEntry {
   note: NoteID,
@@ -260,8 +263,6 @@ pub enum AppEvent {
 lazy_static! {
   static ref APP: Arc<RwLock<App>> = Arc::new(RwLock::new(App::new()));
 }
-
-pub const MIDI_UPDATE_RATE: u32 = 15; //Hz
 
 fn main() {
   if let Err(e) = env_logger::try_init() {

@@ -30,7 +30,7 @@ const THRESHOLD: f32 = 0.1;
 // What counts as a key being pressed. Currently used for modifier press detection
 const ACTUATION_POINT: f32 = 0.2;
 const MODIFIER_KEY: HIDCodes = HIDCodes::LeftShift;
-const MODIFIER_NOTE_SHIFT: u8 = 12;
+const MODIFIER_NOTE_SHIFT: u8 = 1;
 const AFTERTOUCH: bool = true;
 // How many times a second we'll check for updates on how much keys are pressed
 pub const REFRESH_RATE: f32 = 100.0; //Hz
