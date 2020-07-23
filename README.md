@@ -8,9 +8,10 @@ Experimental cross-platform Rust implementation for a Virtual MIDI device using 
 - [x] Velocity Input
 - [x] Polyphonic Aftertouch
 - [x] Interactively bind keys to MIDI notes
+- [x] Channel Selection
+- [x] Shift (or arbitrary) key to shift Octave
 - [ ] Channel Aftertouch
-- [ ] Channel Selection
-- [ ] Shift (or arbitrary) key to shift Octave
+
 
 ## Getting Started
 
