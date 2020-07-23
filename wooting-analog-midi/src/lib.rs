@@ -137,7 +137,7 @@ impl Note {
                 self.pressed = true;
             } else {
                 // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
-                if AFTERTOUCH {
+                if AFTERTOUCH && new_value > previous_value {
                     sink.polyphonic_aftertouch(self.get_effective_note(), new_value, self.channel)?;
                 }
             }
