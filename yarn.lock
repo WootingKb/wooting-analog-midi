@@ -3259,10 +3259,10 @@ cheerio@^0.22.0:
     lodash.reject "^4.4.0"
     lodash.some "^4.4.0"
 
-chokidar@3.4.0, chokidar@^3.3.0, chokidar@^3.4.0:
-  version "3.4.0"
-  resolved "https://registry.yarnpkg.com/chokidar/-/chokidar-3.4.0.tgz#b30611423ce376357c765b9b8f904b9fba3c0be8"
-  integrity sha512-aXAaho2VJtisB/1fg1+3nlLJqGOuewTzQpd/Tz0yTg2R0e4IGtshYvtjowyEumcBv2z+y4+kc75Mz7j5xJskcQ==
+chokidar@3.4.1:
+  version "3.4.1"
+  resolved "https://registry.yarnpkg.com/chokidar/-/chokidar-3.4.1.tgz#e905bdecf10eaa0a0b1db0c664481cc4cbc22ba1"
+  integrity sha512-TQTJyr2stihpC4Sya9hs2Xh+O2wf+igjL36Y75xx2WdHuiICcn/XJza46Jwt0eT5hVpQOzo3FpY3cj3RVYLX0g==
   dependencies:
     anymatch "~3.1.1"
     braces "~3.0.2"
@@ -3292,6 +3292,21 @@ chokidar@^2.1.8:
     upath "^1.1.1"
   optionalDependencies:
     fsevents "^1.2.7"
+
+chokidar@^3.3.0, chokidar@^3.4.0:
+  version "3.4.0"
+  resolved "https://registry.yarnpkg.com/chokidar/-/chokidar-3.4.0.tgz#b30611423ce376357c765b9b8f904b9fba3c0be8"
+  integrity sha512-aXAaho2VJtisB/1fg1+3nlLJqGOuewTzQpd/Tz0yTg2R0e4IGtshYvtjowyEumcBv2z+y4+kc75Mz7j5xJskcQ==
+  dependencies:
+    anymatch "~3.1.1"
+    braces "~3.0.2"
+    glob-parent "~5.1.0"
+    is-binary-path "~2.1.0"
+    is-glob "~4.0.1"
+    normalize-path "~3.0.0"
+    readdirp "~3.4.0"
+  optionalDependencies:
+    fsevents "~2.1.2"
 
 chownr@^1.1.1, chownr@^1.1.2:
   version "1.1.4"
@@ -12091,15 +12106,15 @@ tar@^6.0.2:
     mkdirp "^1.0.3"
     yallist "^4.0.0"
 
-tauri@^0.10:
-  version "0.10.0"
-  resolved "https://registry.yarnpkg.com/tauri/-/tauri-0.10.0.tgz#b98408d6bc655294c1052b6c6d9c77f15586dd5d"
-  integrity sha512-PtLPofatxD97Qi7LRLQAiMh9N2D3CoVSZOil/KZHPUm1N0eJ55vpk9+VZfj/ux5EH4cmQDnMY9/IMfc9Lonq1Q==
+tauri@^0.11:
+  version "0.11.0"
+  resolved "https://registry.yarnpkg.com/tauri/-/tauri-0.11.0.tgz#6f62308383086897c601cce391f08ddba3de5d47"
+  integrity sha512-2iWw7QCb2/wzZuu4HAPboKb4y158PxnIR9jTLmKFofKn0/uLx20wdUX4fOJg2caT2ahbaT3HQZ0LYD2iYk8vuQ==
   dependencies:
     "@tauri-apps/tauri-inliner" "1.14.1"
     "@tauri-apps/toml" "2.2.4"
     chalk "4.1.0"
-    chokidar "3.4.0"
+    chokidar "3.4.1"
     cross-spawn "7.0.3"
     fast-glob "3.2.4"
     fs-extra "9.0.1"
