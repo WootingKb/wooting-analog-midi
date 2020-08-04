@@ -29,7 +29,7 @@ export const PianoDisplay = React.memo((props: Props) => {
       noteRange={{ first: 21, last: 108 }}
       activeNotes={props.midiData
         .filter((data) => {
-          return data.value >= 0.1;
+          return data.note.pressed;
         })
         .map((data) => data.note.note)}
       keyboardShortcuts={keyboardShortcuts}

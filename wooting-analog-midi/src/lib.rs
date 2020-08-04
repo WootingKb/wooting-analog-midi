@@ -1,5 +1,3 @@
-#![feature(vec_remove_item)]
-// extern crate ctrlc;
 extern crate midir;
 extern crate wooting_analog_wrapper;
 #[allow(unused_imports)]
