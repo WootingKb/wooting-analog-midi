@@ -28,6 +28,7 @@
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
+    "all-tests": "cargo test --manifest-path src-tauri/Cargo.toml && cargo test --manifest-path wooting-analog-midi/Cargo.toml",
     "eject": "react-scripts eject",
     "tauri:source": "node ../../../../cli/tauri.js/bin/tauri",
     "tauri:dev": "yarn tauri:source dev",
