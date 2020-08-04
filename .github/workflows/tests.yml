@@ -1,0 +1,20 @@
+name: Tests
+
+on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup
+      run: yarn
+    #- name: Build
+    #  run: yarn tauri build
+    - name: Run tests
+      run: yarn run test
