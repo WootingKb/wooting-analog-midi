@@ -1,7 +1,6 @@
 import "core-js";
 import React, { useEffect, useState } from "react";
 import { listen } from "tauri/api/event";
-
 import "./App.css";
 import * as _ from "lodash";
 import { HIDCodes } from "./HidCodes";
@@ -35,7 +34,7 @@ interface MidiUpdateEntry {
   notes: MidiEntry[];
 }
 
-interface MidiUpdate {
+export interface MidiUpdate {
   data: { [key: string]: MidiUpdateEntry };
 }
 
@@ -101,47 +100,6 @@ function App() {
     };
   });
 
-  const [noteMapping, setNoteMapping] = useState<number | null>(null);
-
-  // Track if the mouse is pressed so we can avoid playNote triggering with keys
-  const [isMousePressed, setIsMousePressed] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (isMousePressed == null || noteMapping == null) return;
-
-    // Cleanup any existing mappings to this key
-    let newMapping = [
-      ...(appSettings.keymapping[selectedChannel] ?? []),
-    ].filter(([_, note]) => note != noteMapping);
-
-    // Left click bind to first pressed key
-    if (isMousePressed == 0) {
-      const key = Object.keys(midiState.data).find(
-        (dataKey) => midiState.data[dataKey].value > 0.1
-      );
-
-      if (!key) return;
-
-      const hidCode = Number(key);
-
-      console.log(`now we can map ${HIDCodes[hidCode]}`);
-
-      // Insert the new mapping
-      newMapping.push([hidCode, noteMapping]);
-    }
-
-    settingsChanged({
-      ...appSettings,
-      keymapping: {
-        ...appSettings.keymapping,
-        [selectedChannel]: newMapping,
-      },
-    });
-
-    setNoteMapping(null);
-    setIsMousePressed(null);
-  }, [noteMapping, midiState, isMousePressed]);
-
   function onPortSelectionChanged(choice: number) {
     console.log("Selected " + choice);
     selectPort(choice).then((result) => {
@@ -151,28 +109,28 @@ function App() {
 
   let pianoData: MidiDataEntry[] = [];
 
-  const channelMapping = appSettings.keymapping[selectedChannel];
-  if (channelMapping) {
-    channelMapping.forEach(([key, note_id]) => {
-      const entry = midiState.data[key];
-      // We wanna find a note entry for the currently selected channel and only push it to the Piano if
+  const channelMapping = appSettings.keymapping[selectedChannel] || [];
 
-      const noteEntry = entry.notes?.find(
-        (note) => note.channel == selectedChannel && note.note == note_id
+  channelMapping.forEach(([key, note_id]) => {
+    const entry = midiState.data[key];
+    // We wanna find a note entry for the currently selected channel and only push it to the Piano if
+    if (!entry) return;
+
+    const noteEntry = entry.notes?.find(
+      (note) => note.channel === selectedChannel && note.note === note_id
+    );
+    if (noteEntry) {
+      pianoData.push({
+        key,
+        value: entry.value,
+        note: noteEntry,
+      });
+    } else {
+      console.error(
+        `There should be a Note entry in a midi update for something that's mapped! key:${key} note_id:${note_id}`
       );
-      if (noteEntry) {
-        pianoData.push({
-          key,
-          value: entry.value,
-          note: noteEntry,
-        });
-      } else {
-        console.error(
-          `There should be a Note entry in a midi update for something that's mapped! key:${key} note_id:${note_id}`
-        );
-      }
-    });
-  }
+    }
+  });
 
   return (
     <div className="App">
@@ -212,14 +170,19 @@ function App() {
         </Row>
 
         <Piano
-          setIsMousePressed={setIsMousePressed}
-          setNoteMapping={setNoteMapping}
+          changeMapping={(mapping) =>
+            settingsChanged({
+              ...appSettings,
+              keymapping: {
+                ...appSettings.keymapping,
+                [selectedChannel]: mapping,
+              },
+            })
+          }
           pianoData={pianoData}
+          mapping={channelMapping}
+          midiState={midiState}
         />
-
-        {noteMapping && isMousePressed == 0 && (
-          <div>{`Press a key to bind for MIDI note number ${noteMapping}`}</div>
-        )}
       </header>
     </div>
   );
