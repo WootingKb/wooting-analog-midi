@@ -47,7 +47,7 @@ export function Piano(props: Props) {
     props.changeMapping(newMapping);
     setNoteMapping(null);
     setIsMousePressed(null);
-  }, [noteMapping, props.midiState, isMousePressed, props]);
+  }, [noteMapping, props, isMousePressed]);
 
   return (
     <>
