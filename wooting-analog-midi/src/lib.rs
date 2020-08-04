@@ -265,7 +265,10 @@ impl MidiService {
         let init_result: SDKResult<u32> = sdk::initialise();
         match init_result.0 {
             Ok(device_num) => {
-                info!("SDK Successfully initialised with {} devices", device_num);
+                info!(
+                    "Analog SDK Successfully initialised with {} devices",
+                    device_num
+                );
                 let devices: Vec<DeviceInfo> = sdk::get_connected_devices_info(DEVICE_BUFFER_MAX)
                     .0
                     .unwrap();
@@ -275,7 +278,10 @@ impl MidiService {
                 }
             }
             Err(e) => {
-                Err(anyhow!("SDK Failed to initialise. Error: {:?}", e))?;
+                Err(anyhow!(
+                    "Wooting Analog SDK Failed to initialise. Error: {:?}",
+                    e
+                ))?;
             }
         }
 

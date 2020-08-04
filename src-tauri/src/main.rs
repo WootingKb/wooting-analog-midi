@@ -275,7 +275,17 @@ fn main() {
       if !setup {
         setup = true;
         let mut handle = webview.as_mut();
-        let event_receiver = APP.write().unwrap().init().unwrap();
+        let event_receiver = {
+          match APP.write().unwrap().init() {
+            Ok(recv) => recv,
+            Err(e) => {
+              let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
+              error!("{}", message);
+              tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
+              panic!(format!("{}", e));
+            }
+          }
+        };
 
         APP.write().unwrap().exec_loop(move || {
           if let Ok(event) = event_receiver
