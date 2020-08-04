@@ -26,10 +26,10 @@ export function Piano(props: Props) {
     if (isMousePressed == null || noteMapping == null) return;
 
     // Cleanup any existing mappings to this key
-    let newMapping = props.mapping.filter(([_, note]) => note != noteMapping);
+    let newMapping = props.mapping.filter(([_, note]) => note !== noteMapping);
 
     // Left click bind to first pressed key
-    if (isMousePressed == 0) {
+    if (isMousePressed === 0) {
       const key = Object.keys(props.midiState.data).find(
         (dataKey) => props.midiState.data[dataKey].value > 0.1
       );
@@ -47,7 +47,7 @@ export function Piano(props: Props) {
     props.changeMapping(newMapping);
     setNoteMapping(null);
     setIsMousePressed(null);
-  }, [noteMapping, props.midiState, isMousePressed]);
+  }, [noteMapping, props.midiState, isMousePressed, props]);
 
   return (
     <>
@@ -65,7 +65,7 @@ export function Piano(props: Props) {
           changeMidiMap={setNoteMapping}
         />
       </PianoHolder>
-      {noteMapping && isMousePressed == 0 && (
+      {noteMapping && isMousePressed === 0 && (
         <div>{`Press a key to bind for MIDI note number ${noteMapping}`}</div>
       )}
     </>

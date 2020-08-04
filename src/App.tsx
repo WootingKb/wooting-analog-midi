@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { listen } from "tauri/api/event";
 import "./App.css";
 import * as _ from "lodash";
-import { HIDCodes } from "./HidCodes";
 import { MidiDataEntry } from "./components/PianoDisplay";
 import styled from "styled-components";
 import {
