@@ -28,7 +28,7 @@
       "shortDescription": "",
       "longDescription": "",
       "deb": {
-        "depends": [],
+        "depends": ["libasound2"],
         "useBootstrapper": false
       },
       "osx": {
