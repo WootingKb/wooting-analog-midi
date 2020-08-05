@@ -1,11 +1,11 @@
 [package]
 name = "wooting-analog-midi-app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = [ "you" ]
-license = ""
+description = "Virtual MIDI input for Analog keyboards!"
+authors = [ "simon-wh", "PastaJ36" ]
+license = "MPL-2.0"
 repository = ""
-default-run = "wooting-analog-midi-app"
+default-run = "wooting-analog-midi"
 edition = "2018"
 build = "src/build.rs"
 
@@ -27,5 +27,5 @@ embedded-server = [ "tauri/embedded-server" ]
 no-server = [ "tauri/no-server" ]
 
 [[bin]]
-name = "wooting-analog-midi-app"
+name = "wooting-analog-midi"
 path = "src/main.rs"
