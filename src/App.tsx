@@ -1,7 +1,6 @@
 import "core-js";
 import React, { useEffect, useState } from "react";
 import "./App.css";
-import * as _ from "lodash";
 import { MidiDataEntry } from "./components/PianoDisplay";
 import styled from "styled-components";
 import { AppSettings, PortOptions, backend, MidiUpdate } from "./backend";
