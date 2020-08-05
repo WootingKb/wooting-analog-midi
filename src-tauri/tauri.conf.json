@@ -13,7 +13,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.tauri.dev",
+      "identifier": "com.wooting.analog.midi",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -24,9 +24,9 @@
       "resources": [],
       "externalBin": [],
       "copyright": "",
-      "category": "DeveloperTool",
-      "shortDescription": "",
-      "longDescription": "",
+      "category": "Music",
+      "shortDescription": "Wooting Virtual MIDI device",
+      "longDescription": "Experimental virtual MIDI device for Analog keyboards!",
       "deb": {
         "depends": ["libasound2"],
         "useBootstrapper": false
