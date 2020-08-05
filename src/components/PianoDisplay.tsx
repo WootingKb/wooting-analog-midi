@@ -2,7 +2,7 @@ import React from "react";
 //@ts-ignore
 import { Piano } from "react-piano";
 import "react-piano/dist/styles.css";
-import { MidiEntry } from "../App";
+import { MidiEntry } from "../backend";
 import { HIDCodes } from "../HidCodes";
 
 export interface MidiDataEntry {

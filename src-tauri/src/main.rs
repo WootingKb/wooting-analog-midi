@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::Duration;
-use wooting_analog_midi::{Channel, MidiService, NoteID, REFRESH_RATE};
+use wooting_analog_midi::{Channel, MidiService, NoteID, WootingAnalogResult, REFRESH_RATE};
 mod settings;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -100,7 +100,9 @@ impl App {
       .update_mapping(&self.settings.get_proper_mapping())
       .with_context(|| "Failed to initialise loaded mapping")?;
 
-    self.midi_service.write().unwrap().init()?;
+    let device_count = self.midi_service.write().unwrap().init()?;
+
+    let mut has_devices: bool = device_count > 0;
 
     let (tx, rx) = channel::<AppEvent>();
 
@@ -109,14 +111,55 @@ impl App {
     let tx_inner = tx.clone();
     self.thread_pool.push(thread::spawn(move || {
       let mut iter_count: u32 = 0;
-      while running_inner.load(Ordering::SeqCst) {
-        if midi_service_inner
-          .write()
-          .unwrap()
-          .poll()
-          .map_err(output_err)
-          .is_ok()
+      if has_devices {
+        if let Err(e) = tx_inner
+          .send(AppEvent::FoundDevices)
+          .context("Error when sending FoundDevices event!")
         {
+          output_err(e);
+        }
+      }
+
+      while running_inner.load(Ordering::SeqCst) {
+        let mut errored = false;
+        // We have to do this hacky structure to ensure the write lock gets dropped before the read lock later on
+        {
+          let result = midi_service_inner.write().unwrap().poll();
+          if let Err(e) = result
+          // .map_err(output_err)
+          {
+            errored = true;
+            match e.root_cause().downcast_ref::<WootingAnalogResult>() {
+              Some(WootingAnalogResult::NoDevices) => {
+                if has_devices {
+                  has_devices = false;
+                  warn!("{}", WootingAnalogResult::NoDevices);
+                  if let Err(e) = tx_inner
+                    .send(AppEvent::NoDevices)
+                    .context("Error when sending NoDevices event!")
+                  {
+                    output_err(e);
+                  }
+                }
+              }
+              Some(_) | None => {
+                error!("{}", e);
+              }
+            };
+          }
+        }
+
+        if !errored {
+          if !has_devices {
+            has_devices = true;
+            if let Err(e) = tx_inner
+              .send(AppEvent::FoundDevices)
+              .context("Error when sending FoundDevices event!")
+            {
+              output_err(e);
+            }
+          }
+
           if (iter_count % (REFRESH_RATE as u32 / MIDI_UPDATE_RATE)) == 0 {
             let keys = &midi_service_inner.read().unwrap().keys;
             let event_message = MidiUpdate {
@@ -257,7 +300,14 @@ pub enum ChannelMessage {
 }
 pub enum AppEvent {
   MidiUpdate(MidiUpdate),
-  // InitComplete,
+  NoDevices,
+  FoundDevices,
+}
+
+fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
+  if let Err(e) = tauri::event::emit(handle, String::from(event_name), param) {
+    error!("Error emitting event! {}", e);
+  }
 }
 
 lazy_static! {
@@ -290,30 +340,25 @@ fn main() {
         APP.write().unwrap().exec_loop(move || {
           if let Ok(event) = event_receiver
             .recv()
-            .map_err(|err| warn!("Error on event reciever: {}", err))
+            // .map_err(|err| warn!("Error on event reciever: {}", err))
           {
             match event {
               AppEvent::MidiUpdate(update) => {
-                if let Err(e) = tauri::event::emit(
-                  &mut handle,
-                  String::from("midi-update"),
-                  Some(serde_json::to_string(&update).unwrap()),
-                ) {
-                  error!("Error emitting event! {}", e);
-                }
+                emit_event(&mut handle, "midi-update", Some(serde_json::to_string(&update).unwrap()));
+
+              },
+              AppEvent::FoundDevices => {
+                emit_event(&mut handle, "found-devices", None);
+              },
+              AppEvent::NoDevices => {
+                emit_event(&mut handle, "no-devices", None);
               }
             }
           }
         })
       }
       let mut handle = webview.as_mut();
-      if let Err(e) = tauri::event::emit(
-        &mut handle,
-        String::from("init-complete"),
-        Option::<()>::None,
-      ) {
-        error!("Error emitting event! {}", e);
-      }
+      emit_event(&mut handle, "init-complete", None);
     })
     .invoke_handler(move |_webview, arg| match serde_json::from_str(arg) {
       Err(e) => Err(e.to_string()),

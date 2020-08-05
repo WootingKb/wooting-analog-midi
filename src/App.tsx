@@ -1,18 +1,10 @@
 import "core-js";
 import React, { useEffect, useState } from "react";
-import { listen } from "tauri/api/event";
 import "./App.css";
 import * as _ from "lodash";
 import { MidiDataEntry } from "./components/PianoDisplay";
 import styled from "styled-components";
-import {
-  updateSettings,
-  requestConfig,
-  getPortOptions,
-  selectPort,
-  AppSettings,
-  PortOptions,
-} from "./tauriFunctions";
+import { AppSettings, PortOptions, backend, MidiUpdate } from "./backend";
 import { Piano } from "./components/Piano";
 
 const Row = styled.div`
@@ -21,33 +13,6 @@ const Row = styled.div`
   align-items: center;
 `;
 
-export interface MidiEntry {
-  note: number;
-  value: number;
-  channel: number;
-  pressed: boolean;
-}
-
-interface MidiUpdateEntry {
-  value: number;
-  notes: MidiEntry[];
-}
-
-export interface MidiUpdate {
-  data: { [key: string]: MidiUpdateEntry };
-}
-
-let lastData: MidiUpdate = { data: {} };
-let updateCallback: (update: MidiUpdate) => void;
-listen<string>("midi-update", function (res) {
-  if (updateCallback) {
-    const data = JSON.parse(res.payload) as MidiUpdate;
-    if (!_.isEqual(data, lastData)) updateCallback(data);
-    // Parse lastData again from payload. If we take data after the callacbk the equal check fails for unknown reason
-    lastData = JSON.parse(res.payload);
-  }
-});
-
 function App() {
   const [midiState, setMidiState] = useState<MidiUpdate>({ data: {} });
   const [appSettings, setAppSettings] = useState<AppSettings>({
@@ -55,31 +20,45 @@ function App() {
   });
   const [portOptions, setPortOptions] = useState<PortOptions>([]);
   const [selectedChannel, setSelectedChannel] = useState<number>(0);
+  const [hasDevices, setHasDevices] = useState<boolean>(backend.hasDevices);
 
   function settingsChanged(settings: AppSettings) {
     setAppSettings(settings);
-    updateSettings(settings);
+    backend.updateSettings(settings);
   }
 
   useEffect(() => {
-    listen(
-      "init-complete",
-      () => {
-        console.log("Init complete");
-        requestConfig().then(function (settings) {
-          setAppSettings(settings);
+    backend.on("found-devices", () => {
+      setHasDevices(true);
+    });
 
-          // settings.keymapping[HIDCodes.ArrowUp] = 20;
-          // console.log(settings);
-          // updateSettings(settings);
-        });
-        getPortOptions().then((result) => {
-          console.log(result);
-          setPortOptions(result);
-        });
-      },
-      true
-    );
+    backend.on("no-devices", () => {
+      setHasDevices(false);
+    });
+
+    return () => {
+      // TODO: Cleanup this so it's not removing all listeners
+      backend.removeAllListeners("found-devices");
+      backend.removeAllListeners("no-devices");
+    };
+  });
+
+  useEffect(() => {
+    backend.onInitComplete(() => {
+      console.log("Init complete");
+      backend.requestConfig().then(function (settings) {
+        setAppSettings(settings);
+
+        // settings.keymapping[HIDCodes.ArrowUp] = 20;
+        // console.log(settings);
+        // updateSettings(settings);
+      });
+
+      backend.getPortOptions().then((result) => {
+        console.log(result);
+        setPortOptions(result);
+      });
+    });
 
     // On mac if we don't catch key events you can hear the system sound
     // https://stackoverflow.com/questions/7992742/how-to-turn-off-keyboard-sounds-in-cocoa-application
@@ -94,14 +73,19 @@ function App() {
   }, []);
 
   useEffect(() => {
-    updateCallback = (update: MidiUpdate) => {
+    backend.on("midi-update", (update: MidiUpdate) => {
       setMidiState(update);
+    });
+
+    return () => {
+      //TODO: Cleanup this unsubscribe
+      backend.removeAllListeners("midi-update");
     };
-  });
+  }, []);
 
   function onPortSelectionChanged(choice: number) {
     console.log("Selected " + choice);
-    selectPort(choice).then((result) => {
+    backend.selectPort(choice).then((result) => {
       setPortOptions(result);
     });
   }
@@ -134,6 +118,14 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
+        <Row>
+          <p>
+            {hasDevices
+              ? "Devices are connected, you're all set!"
+              : "No compatible devices could be found!"}
+          </p>
+        </Row>
+
         <Row>
           <p>Output Port:</p>
           {portOptions && (

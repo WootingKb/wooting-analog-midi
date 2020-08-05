@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { PianoDisplay, MidiDataEntry } from "./PianoDisplay";
 import { HIDCodes } from "../HidCodes";
-import { MidiUpdate } from "../App";
+import { MidiUpdate } from "../backend";
 
 const PianoHolder = styled.div`
   width: 90%;

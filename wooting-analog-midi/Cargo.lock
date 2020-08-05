@@ -298,6 +298,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "thiserror"
+version = "1.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dfdd070ccd8ccb78f4ad66bf1982dc37f620ef696c6b5028fe2ed83dd3d0d08"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd80fc12f73063ac132ac92aceea36734f04a1d93c1240c6944e23a3b8841793"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "time"
 version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -408,12 +428,13 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 [[package]]
 name = "wooting-analog-common"
 version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#539de2f95ed7c62e89601fa23f876dfe0da99634"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#550004970db1de107bda3f2f897b45afb0d680de"
 dependencies = [
  "enum-primitive-derive",
  "ffi-support",
  "log",
  "num-traits 0.1.43",
+ "thiserror",
 ]
 
 [[package]]
@@ -431,7 +452,7 @@ dependencies = [
 [[package]]
 name = "wooting-analog-wrapper"
 version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#539de2f95ed7c62e89601fa23f876dfe0da99634"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#550004970db1de107bda3f2f897b45afb0d680de"
 dependencies = [
  "ctrlc",
  "lazy_static",

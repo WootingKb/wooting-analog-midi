@@ -9,10 +9,11 @@ extern crate anyhow;
 #[allow(unused_imports)]
 use log::{error, info};
 use sdk::SDKResult;
+pub use sdk::WootingAnalogResult;
 pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes, ToPrimitive};
 use wooting_analog_wrapper as sdk;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use midir::{MidiOutput, MidiOutputConnection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -258,10 +259,10 @@ impl MidiService {
     }
 
     // pub fn init(&mut self, connection_preference: Option<usize>) -> Result<(), Box<dyn Error>> {
-    pub fn init(&mut self) -> Result<()> {
+    pub fn init(&mut self) -> Result<u32> {
         info!("Starting Wooting Analog SDK!");
         let init_result: SDKResult<u32> = sdk::initialise();
-        match init_result.0 {
+        let device_num = match init_result.0 {
             Ok(device_num) => {
                 info!(
                     "Analog SDK Successfully initialised with {} devices",
@@ -274,14 +275,11 @@ impl MidiService {
                 for (i, device) in devices.iter().enumerate() {
                     println!("Device {} is {:?}", i, device);
                 }
+
+                device_num
             }
-            Err(e) => {
-                Err(anyhow!(
-                    "Wooting Analog SDK Failed to initialise. Error: {:?}",
-                    e
-                ))?;
-            }
-        }
+            Err(e) => Err(e).context("Wooting Analog SDK Failed to initialise")?,
+        };
 
         let midi_out = MidiOutput::new("Wooting Analog MIDI Output")?;
 
@@ -305,14 +303,14 @@ impl MidiService {
             info!("No output ports available!");
         }
         // self.port_options = Some(midi_out);
-        Ok(())
+        Ok(device_num)
     }
 
     pub fn select_port(&mut self, option: usize) -> Result<()> {
         //TODO: Deal with the case where the port list has changed since the `port_options` was generated
         if let Some(options) = &self.port_options {
             if option >= options.len() {
-                return Err(anyhow!("Port option out of range!"));
+                bail!("Port option out of range!");
             }
 
             let selection = &options[option];
@@ -360,7 +358,7 @@ impl MidiService {
 
     pub fn poll(&mut self) -> Result<()> {
         if self.connection.is_none() {
-            Err(anyhow!("No MIDI connection!"))?;
+            bail!("No MIDI connection!");
         }
 
         let read_result: SDKResult<HashMap<u16, f32>> =
@@ -384,7 +382,7 @@ impl MidiService {
                 }
             }
             Err(e) => {
-                bail!("Error reading full buffer, {:?}", e);
+                Err(e).context("Failed to read buffer")?;
             }
         };
         Ok(())
