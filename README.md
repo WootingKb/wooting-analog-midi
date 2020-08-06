@@ -17,7 +17,7 @@ Experimental cross-platform Rust implementation for a Virtual MIDI device using 
 
 ### Downloads
 
-TODO
+Downloads for each platform can be found on the [latest release](https://github.com/WootingKb/wooting-analog-midi/releases/latest)
 
 ### Setup
 
