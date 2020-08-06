@@ -3,7 +3,13 @@ import React, { useEffect, useState } from "react";
 import "./App.css";
 import { MidiDataEntry } from "./components/PianoDisplay";
 import styled from "styled-components";
-import { AppSettings, PortOptions, backend, MidiUpdate } from "./backend";
+import {
+  AppSettings,
+  PortOptions,
+  backend,
+  MidiUpdate,
+  DeviceList,
+} from "./backend";
 import { Piano } from "./components/Piano";
 
 const Row = styled.div`
@@ -19,7 +25,9 @@ function App() {
   });
   const [portOptions, setPortOptions] = useState<PortOptions>([]);
   const [selectedChannel, setSelectedChannel] = useState<number>(0);
-  const [hasDevices, setHasDevices] = useState<boolean>(backend.hasDevices);
+  const [connectedDevices, setConnectedDevices] = useState<DeviceList>(
+    backend.connectedDeviceList
+  );
 
   function settingsChanged(settings: AppSettings) {
     setAppSettings(settings);
@@ -27,12 +35,12 @@ function App() {
   }
 
   useEffect(() => {
-    backend.on("found-devices", () => {
-      setHasDevices(true);
+    backend.on("found-devices", (devices: DeviceList) => {
+      setConnectedDevices(devices);
     });
 
     backend.on("no-devices", () => {
-      setHasDevices(false);
+      setConnectedDevices([]);
     });
 
     return () => {
@@ -119,8 +127,8 @@ function App() {
       <header className="App-header">
         <Row>
           <p>
-            {hasDevices
-              ? "Devices are connected, you're all set!"
+            {connectedDevices.length > 0
+              ? `Device ${connectedDevices[0].device_name} are connected, you're all set!`
               : "No compatible devices could be found!"}
           </p>
         </Row>

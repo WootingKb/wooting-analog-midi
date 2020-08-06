@@ -20,7 +20,9 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::Duration;
-use wooting_analog_midi::{Channel, MidiService, NoteID, WootingAnalogResult, REFRESH_RATE};
+use wooting_analog_midi::{
+  Channel, DeviceInfo, MidiService, NoteID, WootingAnalogResult, REFRESH_RATE,
+};
 mod settings;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -112,8 +114,15 @@ impl App {
     self.thread_pool.push(thread::spawn(move || {
       let mut iter_count: u32 = 0;
       if has_devices {
+        let devices = midi_service_inner
+          .read()
+          .unwrap()
+          .get_connected_devices()
+          .context("Failed to get connected devices")
+          .map_err(output_err)
+          .unwrap_or(vec![]);
         if let Err(e) = tx_inner
-          .send(AppEvent::FoundDevices)
+          .send(AppEvent::FoundDevices(devices))
           .context("Error when sending FoundDevices event!")
         {
           output_err(e);
@@ -152,8 +161,15 @@ impl App {
         if !errored {
           if !has_devices {
             has_devices = true;
+            let devices = midi_service_inner
+              .read()
+              .unwrap()
+              .get_connected_devices()
+              .context("Failed to get connected devices")
+              .map_err(output_err)
+              .unwrap_or(vec![]);
             if let Err(e) = tx_inner
-              .send(AppEvent::FoundDevices)
+              .send(AppEvent::FoundDevices(devices))
               .context("Error when sending FoundDevices event!")
             {
               output_err(e);
@@ -301,7 +317,7 @@ pub enum ChannelMessage {
 pub enum AppEvent {
   MidiUpdate(MidiUpdate),
   NoDevices,
-  FoundDevices,
+  FoundDevices(Vec<DeviceInfo>),
 }
 
 fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
@@ -347,8 +363,8 @@ fn main() {
                 emit_event(&mut handle, "midi-update", Some(serde_json::to_string(&update).unwrap()));
 
               },
-              AppEvent::FoundDevices => {
-                emit_event(&mut handle, "found-devices", None);
+              AppEvent::FoundDevices(devices) => {
+                emit_event(&mut handle, "found-devices", Some(serde_json::to_string(&devices).unwrap()));
               },
               AppEvent::NoDevices => {
                 emit_event(&mut handle, "no-devices", None);

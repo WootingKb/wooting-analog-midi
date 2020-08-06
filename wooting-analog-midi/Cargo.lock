@@ -427,13 +427,14 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "wooting-analog-common"
-version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#550004970db1de107bda3f2f897b45afb0d680de"
+version = "0.5.0"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/serde-derive#c201e33f6f287eff8ac94e7561086bf4648e2b32"
 dependencies = [
  "enum-primitive-derive",
  "ffi-support",
  "log",
  "num-traits 0.1.43",
+ "serde",
  "thiserror",
 ]
 
@@ -451,8 +452,8 @@ dependencies = [
 
 [[package]]
 name = "wooting-analog-wrapper"
-version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#550004970db1de107bda3f2f897b45afb0d680de"
+version = "0.5.0"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/serde-derive#c201e33f6f287eff8ac94e7561086bf4648e2b32"
 dependencies = [
  "ctrlc",
  "lazy_static",

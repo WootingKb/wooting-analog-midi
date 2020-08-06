@@ -9,8 +9,7 @@ extern crate anyhow;
 #[allow(unused_imports)]
 use log::{error, info};
 use sdk::SDKResult;
-pub use sdk::WootingAnalogResult;
-pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes, ToPrimitive};
+pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes, ToPrimitive, WootingAnalogResult};
 use wooting_analog_wrapper as sdk;
 
 use anyhow::{Context, Result};
@@ -304,6 +303,10 @@ impl MidiService {
         }
         // self.port_options = Some(midi_out);
         Ok(device_num)
+    }
+
+    pub fn get_connected_devices(&self) -> Result<Vec<DeviceInfo>> {
+        return Ok(sdk::get_connected_devices_info(DEVICE_BUFFER_MAX).0?);
     }
 
     pub fn select_port(&mut self, option: usize) -> Result<()> {

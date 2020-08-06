@@ -1821,12 +1821,13 @@ dependencies = [
 [[package]]
 name = "wooting-analog-common"
 version = "0.5.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=release/v0.5#8ebcf1f48e215ced8b66b810cd9c5a74f30c254a"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/serde-derive#c201e33f6f287eff8ac94e7561086bf4648e2b32"
 dependencies = [
  "enum-primitive-derive",
  "ffi-support",
  "log",
  "num-traits 0.1.43",
+ "serde",
  "thiserror",
 ]
 
@@ -1860,7 +1861,7 @@ dependencies = [
 [[package]]
 name = "wooting-analog-wrapper"
 version = "0.5.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=release/v0.5#8ebcf1f48e215ced8b66b810cd9c5a74f30c254a"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/serde-derive#c201e33f6f287eff8ac94e7561086bf4648e2b32"
 dependencies = [
  "ctrlc",
  "lazy_static",

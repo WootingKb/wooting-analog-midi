@@ -8,6 +8,32 @@ type PortOption = [number, string, boolean];
 
 export type PortOptions = PortOption[];
 
+export enum DeviceType {
+  /// Device is of type Keyboard
+  Keyboard = 1,
+  /// Device is of type Keypad
+  Keypad = 2,
+  /// Device
+  Other = 3,
+}
+
+export interface DeviceInfo {
+  /// Device Vendor ID `vid`
+  vendor_id: number;
+  /// Device Product ID `pid`
+  product_id: number;
+  /// Device Manufacturer name
+  manufacturer_name: String;
+  /// Device name
+  device_name: String;
+  /// Unique device ID
+  device_id: number;
+  /// Hardware type of the Device
+  device_type: DeviceType;
+}
+
+export type DeviceList = DeviceInfo[];
+
 export interface AppSettings {
   keymapping: { [channel: string]: [HIDCodes, number][] };
 }
@@ -43,6 +69,7 @@ export class Backend extends EventEmitter {
   private lastMidi: MidiUpdate;
   public hasDevices: boolean;
   public hasInitComplete: boolean;
+  public connectedDeviceList: DeviceList;
 
   constructor() {
     super();
@@ -56,15 +83,18 @@ export class Backend extends EventEmitter {
       this.lastMidi = JSON.parse(res.payload);
     });
     this.hasDevices = false;
+    this.connectedDeviceList = [];
     listen<string>("found-devices", (res) => {
       console.log("Found devices");
+      this.connectedDeviceList = JSON.parse(res.payload) as DeviceList;
       this.hasDevices = true;
-      this.emit("found-devices");
+      this.emit("found-devices", this.connectedDeviceList);
     });
 
     listen<string>("no-devices", (res) => {
       console.log("No devices");
       this.hasDevices = false;
+      this.connectedDeviceList = [];
       this.emit("no-devices");
     });
 
