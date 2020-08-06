@@ -460,9 +460,9 @@ dependencies = [
 
 [[package]]
 name = "ffi-support"
-version = "0.4.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "087be066eb6e85d7150f0c5400018a32802f99d688b2d3868c526f7bbfe17960"
+checksum = "f85d4d1be103c0b2d86968f0b0690dc09ac0ba205b90adb0389b552869e5000e"
 dependencies = [
  "lazy_static",
  "log",
@@ -1820,8 +1820,8 @@ dependencies = [
 
 [[package]]
 name = "wooting-analog-common"
-version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#550004970db1de107bda3f2f897b45afb0d680de"
+version = "0.5.0"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=release/v0.5#8ebcf1f48e215ced8b66b810cd9c5a74f30c254a"
 dependencies = [
  "enum-primitive-derive",
  "ffi-support",
@@ -1859,8 +1859,8 @@ dependencies = [
 
 [[package]]
 name = "wooting-analog-wrapper"
-version = "0.4.0"
-source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=feature/rust-wrapper#550004970db1de107bda3f2f897b45afb0d680de"
+version = "0.5.0"
+source = "git+https://github.com/WootingKb/wooting-analog-sdk?branch=release/v0.5#8ebcf1f48e215ced8b66b810cd9c5a74f30c254a"
 dependencies = [
  "ctrlc",
  "lazy_static",
