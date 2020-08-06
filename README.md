@@ -18,6 +18,10 @@ This project began as a side-project and is currently at a MVP (Minimum viable p
 
 ## Getting Started
 
+### Wooting Analog SDK
+
+This project uses the Wooting Analog SDK under the hood. If you're on Windows the Analog SDK is installed with your Wootility. If you don't have the Wootility, or if you use Mac or Linux please refer to the [Analog SDK installation guide.](https://github.com/WootingKb/wooting-analog-sdk#installing)
+
 ### Downloads
 
 Downloads for each platform can be found on the [latest release](https://github.com/WootingKb/wooting-analog-midi/releases/latest)
