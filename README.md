@@ -7,11 +7,14 @@ Experimental cross-platform Rust implementation for a Virtual MIDI device using 
 - [x] Virtual MIDI Input from Wooting Analog Keyboards
 - [x] Velocity Input
 - [x] Polyphonic Aftertouch
-- [x] Interactively bind keys to MIDI notes
+- [x] Interactively bind keys to MIDI notes per channel (left click bind, right click unbind)
 - [x] Channel Selection
-- [x] Shift (or arbitrary) key to shift Octave
+- [x] Shift key to shift Octave
 - [ ] Channel Aftertouch
 
+## Project Status
+
+This project began as a side-project and is currently at a MVP (Minimum viable product) stage. We want to hear from you if this is something you'd like us to develop more. You're also welcome to contribute to the project if you desire. Feedback, testing/bug reporting and code contributions would all be greatly appreciated!
 
 ## Getting Started
 
