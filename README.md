@@ -26,7 +26,19 @@ Downloads for each platform can be found on the [latest release](https://github.
 
 #### Mac
 
-You may need to follow [this guide](https://medium.com/@keybaudio/virtual-midi-devices-on-macos-a45cdbdffdaf) to create a virtual MIDI device for the Application to output to!
+You may need to follow [this guide](https://medium.com/@keybaudio/virtual-midi-devices-on-macos-a45cdbdffdaf) to create a virtual MIDI device for the Application to output to.
+
+App signing for the mac App is not setup yet. You might see this error if you try to open the app:
+
+<img src="https://i.ibb.co/cLCvkLM/analog-midi-mac-1.png" height=300></img>
+
+To allow the app to open just go to System preferences and then Security & Privacy:
+
+<img src="https://i.ibb.co/rb2CT38/analog-midi-mac-2.png" height=300></img>
+
+Here you can allow the app to open:
+
+<img src="https://i.ibb.co/PNPpHXj/analog-midi-mac-3.png" height=300></img>
 
 ## Development Setup
 
