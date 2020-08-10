@@ -112,3 +112,9 @@ yarn tauri build
 ```
 
 For more details & other commands, Tauri has a good reference for [development commands here](https://tauri.studio/docs/usage/development/development)
+
+## Credits
+- Many thanks to microdee for [WootingPiano](https://github.com/microdee/WootingPiano) which served as a great inspiration for this project!
+- Thanks to @TriStateGenius for helping with behaviour & design and feedback during development!
+- Thanks to the awesome [midir](https://github.com/Boddlnagg/midir) project for the Rust midi backend!
+- Thanks to all at [Tauri](https://tauri.studio/en/) for their awesome project!
