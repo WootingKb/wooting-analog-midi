@@ -50,7 +50,7 @@ This section is only relevant if you wish to help develop/contribute code to the
 
 ### Dependencies
 
-- [yarn](https://yarnpkg.com/getting-started) Is our preferred Node package manager
+- [yarn](https://yarnpkg.com/getting-started/install) Is our preferred Node package manager
 - [Rust & Tauri](https://tauri.studio/docs/getting-started/intro#setting-up-your-environment)
 
 #### Linux
