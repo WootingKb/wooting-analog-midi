@@ -1,6 +1,5 @@
 import "core-js";
 import React, { useEffect, useState } from "react";
-import "./App.css";
 import { MidiDataEntry } from "./components/PianoDisplay";
 import styled from "styled-components";
 import {
@@ -16,6 +15,34 @@ const Row = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
+`;
+
+const Column = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const AppRoot = styled.div`
+  padding: 1em;
+`;
+
+const Heading = styled.div`
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+`;
+
+const Body = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const SettingsBody = styled.div`
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
 `;
 
 function App() {
@@ -124,16 +151,13 @@ function App() {
   });
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <Row>
-          <p>
-            {connectedDevices.length > 0
-              ? `Device ${connectedDevices[0].device_name} are connected, you're all set!`
-              : "No compatible devices could be found!"}
-          </p>
-        </Row>
-
+    <AppRoot>
+      <Heading>
+        <p>
+          {connectedDevices.length > 0
+            ? `Device '${connectedDevices[0].device_name}' is connected, you're all set!`
+            : "No compatible devices could be found!"}
+        </p>
         <Row>
           <p>Output Port:</p>
           {portOptions && (
@@ -151,23 +175,8 @@ function App() {
             </select>
           )}
         </Row>
-        <Row>
-          <p>Shift Amount:</p>
-
-          <input
-            type="number"
-            value={appSettings.shift_amount}
-            onChange={(event) => {
-              settingsChanged({
-                ...appSettings,
-                shift_amount: parseInt(event.target.value),
-              });
-            }}
-            min="0"
-            max="255"
-          />
-        </Row>
-
+      </Heading>
+      <Body>
         <Row>
           <p>Current Channel:</p>
           <select
@@ -198,8 +207,26 @@ function App() {
           mapping={channelMapping}
           midiState={midiState}
         />
-      </header>
-    </div>
+      </Body>
+      <SettingsBody>
+        <Column>
+          <p>Shift Amount</p>
+
+          <input
+            type="number"
+            value={appSettings.shift_amount}
+            onChange={(event) => {
+              settingsChanged({
+                ...appSettings,
+                shift_amount: parseInt(event.target.value),
+              });
+            }}
+            min="0"
+            max="255"
+          />
+        </Column>
+      </SettingsBody>
+    </AppRoot>
   );
 }
 
