@@ -45,12 +45,26 @@ impl AppSettings {
     let mut content: String = String::new();
     let _size = file.read_to_string(&mut content)?;
     if content.is_empty() {
-      let default = Self::default();
-      file.write_all(&serde_json::to_vec(&default)?[..])?;
-      Ok(default)
+      Self::save_default(&mut file)
     } else {
-      Ok(serde_json::from_str::<AppSettings>(&content.trim()[..])?)
+      match serde_json::from_str::<AppSettings>(&content.trim()[..]) {
+        Ok(res) => Ok(res),
+        Err(e) => {
+          error!(
+            "Error deserializing settings, {}.\nSaving default config...",
+            e
+          );
+
+          Self::save_default(&mut file)
+        }
+      }
     }
+  }
+
+  fn save_default(file: &mut std::fs::File) -> Result<AppSettings> {
+    let default = Self::default();
+    file.write_all(&serde_json::to_vec(&default)?[..])?;
+    Ok(default)
   }
 
   pub fn save_config(&self) -> Result<()> {

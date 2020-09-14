@@ -78,7 +78,6 @@ struct App {
   thread_pool: Vec<JoinHandle<()>>,
   midi_service: Arc<RwLock<MidiService>>,
   running: Arc<AtomicBool>,
-  // event_sender: Option<Sender<AppEvent>>,
 }
 
 impl App {
@@ -88,7 +87,6 @@ impl App {
       thread_pool: vec![],
       midi_service: Arc::new(RwLock::new(MidiService::new())),
       running: Arc::new(AtomicBool::new(true)),
-      // event_sender: None,
     }
   }
 
@@ -325,7 +323,7 @@ fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<St
 }
 
 lazy_static! {
-  static ref APP: Arc<RwLock<App>> = Arc::new(RwLock::new(App::new()));
+  static ref APP: RwLock<App> = RwLock::new(App::new());
 }
 
 fn main() {

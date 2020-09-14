@@ -11,7 +11,6 @@ import {
   DeviceList,
 } from "./backend";
 import { Piano } from "./components/Piano";
-import { settings } from "cluster";
 
 const Row = styled.div`
   display: flex;
