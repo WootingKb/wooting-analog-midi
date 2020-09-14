@@ -80,7 +80,7 @@ impl NoteSink for MidiOutputConnection {
 pub struct Note {
     pub note_id: NoteID,
     pub pressed: bool,
-    modifier_active: bool,
+    shifted_amount: u8,
     pub velocity: f32,
     pub channel: Channel,
 }
@@ -91,18 +91,13 @@ impl Note {
             note_id: note,
             pressed: false,
             velocity: 0.0,
-            modifier_active: false,
+            shifted_amount: 0,
             channel,
         }
     }
 
     fn get_effective_note(&self) -> NoteID {
-        self.note_id
-            + (if self.modifier_active {
-                MODIFIER_NOTE_SHIFT
-            } else {
-                0
-            })
+        self.note_id + self.shifted_amount
     }
 
     fn update_current_value(
@@ -110,7 +105,7 @@ impl Note {
         previous_value: f32,
         new_value: f32,
         sink: &mut impl NoteSink,
-        modifer_pressed: bool,
+        shifted_amount: u8,
     ) -> Result<()> {
         self.velocity = f32::min(
             f32::max(
@@ -120,13 +115,13 @@ impl Note {
             1.0,
         );
         // If the modifier pressed state has changed we need to make sure we turn the current note off because the note id will be changed
-        if modifer_pressed != self.modifier_active {
+        if shifted_amount != self.shifted_amount {
             if self.pressed {
                 sink.note_off(self.get_effective_note(), self.velocity, self.channel)?;
                 self.pressed = false;
             }
         }
-        self.modifier_active = modifer_pressed;
+        self.shifted_amount = shifted_amount;
 
         if new_value > THRESHOLD {
             // 'Pressed'
@@ -180,10 +175,10 @@ impl Key {
         &mut self,
         new_value: f32,
         sink: &mut impl NoteSink,
-        modifer_pressed: bool,
+        shifted_amount: u8,
     ) -> Result<()> {
         for note in self.notes.iter_mut() {
-            note.update_current_value(self.current_value, new_value, sink, modifer_pressed)?;
+            note.update_current_value(self.current_value, new_value, sink, shifted_amount)?;
         }
 
         self.current_value = new_value;
@@ -225,6 +220,7 @@ pub struct MidiService {
     pub port_options: Option<Vec<PortOption>>,
     connection: Option<MidiOutputConnection>,
     pub keys: HashMap<HIDCodes, Key>,
+    pub amount_to_shift: u8,
 }
 
 //TODO: Determine if this is safe (LUL imagine saying it may be safe when it literally says unsafe) or a different solution is required
@@ -238,6 +234,7 @@ impl MidiService {
             port_options: None,
             connection: None,
             keys: generate_note_mapping(),
+            amount_to_shift: 0,
         }
     }
 
@@ -378,7 +375,11 @@ impl MidiService {
                             key.update_value(
                                 *value,
                                 self.connection.as_mut().unwrap(),
-                                modifier_pressed,
+                                if modifier_pressed {
+                                    self.amount_to_shift
+                                } else {
+                                    0
+                                },
                             )?;
                         }
                     }

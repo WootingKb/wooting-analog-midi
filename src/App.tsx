@@ -11,6 +11,7 @@ import {
   DeviceList,
 } from "./backend";
 import { Piano } from "./components/Piano";
+import { settings } from "cluster";
 
 const Row = styled.div`
   display: flex;
@@ -22,6 +23,7 @@ function App() {
   const [midiState, setMidiState] = useState<MidiUpdate>({ data: {} });
   const [appSettings, setAppSettings] = useState<AppSettings>({
     keymapping: {},
+    shift_amount: 0,
   });
   const [portOptions, setPortOptions] = useState<PortOptions>([]);
   const [selectedChannel, setSelectedChannel] = useState<number>(0);
@@ -149,6 +151,22 @@ function App() {
               ))}
             </select>
           )}
+        </Row>
+        <Row>
+          <p>Shift Amount:</p>
+
+          <input
+            type="number"
+            value={appSettings.shift_amount}
+            onChange={(event) => {
+              settingsChanged({
+                ...appSettings,
+                shift_amount: parseInt(event.target.value),
+              });
+            }}
+            min="0"
+            max="255"
+          />
         </Row>
 
         <Row>

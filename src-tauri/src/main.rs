@@ -94,13 +94,13 @@ impl App {
 
   fn init(&mut self) -> Result<Receiver<AppEvent>> {
     self.settings = AppSettings::load_config().context("Failed to load App Settings")?;
-
-    self
-      .midi_service
-      .write()
-      .unwrap()
-      .update_mapping(&self.settings.get_proper_mapping())
-      .with_context(|| "Failed to initialise loaded mapping")?;
+    {
+      let mut midi = self.midi_service.write().unwrap();
+      midi
+        .update_mapping(&self.settings.get_proper_mapping())
+        .with_context(|| "Failed to initialise loaded mapping")?;
+      midi.amount_to_shift = self.settings.shift_amount;
+    }
 
     let device_count = self.midi_service.write().unwrap().init()?;
 
@@ -223,16 +223,14 @@ impl App {
 
   fn update_config(&mut self, config: AppSettings) {
     self.settings = config;
-    //Update the service with the new mapping
-    if let Err(e) = self
-      .midi_service
-      .write()
-      .unwrap()
-      .update_mapping(&self.settings.get_proper_mapping())
     {
-      error!("Error updating midi service mapping! {}", e);
+      let mut midi = self.midi_service.write().unwrap();
+      //Update the service with the new mapping
+      if let Err(e) = midi.update_mapping(&self.settings.get_proper_mapping()) {
+        error!("Error updating midi service mapping! {}", e);
+      }
+      midi.amount_to_shift = self.settings.shift_amount;
     }
-
     if let Err(e) = self.settings.save_config() {
       error!("Error saving: {}", e);
     }

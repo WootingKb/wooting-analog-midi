@@ -36,6 +36,7 @@ export type DeviceList = DeviceInfo[];
 
 export interface AppSettings {
   keymapping: { [channel: string]: [HIDCodes, number][] };
+  shift_amount: number;
 }
 
 export interface MidiEntry {
