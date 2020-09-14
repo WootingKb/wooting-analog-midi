@@ -19,7 +19,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
-use std::time::Duration;
 use wooting_analog_midi::{
   Channel, DeviceInfo, MidiService, NoteID, WootingAnalogResult, REFRESH_RATE,
 };
@@ -31,9 +30,11 @@ use settings::AppSettings;
 use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
+use std::time::{Duration, Instant};
 
 // This defines the rate at which midi updates are sent to the UI
 pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
+const SAVE_THROTTLE: Duration = Duration::from_secs(5);
 
 #[derive(Serialize)]
 struct MidiEntry {
@@ -78,6 +79,7 @@ struct App {
   thread_pool: Vec<JoinHandle<()>>,
   midi_service: Arc<RwLock<MidiService>>,
   running: Arc<AtomicBool>,
+  last_save: Option<Instant>,
 }
 
 impl App {
@@ -87,6 +89,7 @@ impl App {
       thread_pool: vec![],
       midi_service: Arc::new(RwLock::new(MidiService::new())),
       running: Arc::new(AtomicBool::new(true)),
+      last_save: None,
     }
   }
 
@@ -229,8 +232,16 @@ impl App {
       }
       midi.amount_to_shift = self.settings.shift_amount;
     }
-    if let Err(e) = self.settings.save_config() {
-      error!("Error saving: {}", e);
+    self.save_config();
+  }
+
+  fn save_config(&mut self) {
+    if self.last_save.is_none() || self.last_save.unwrap().elapsed() >= SAVE_THROTTLE {
+      if let Err(e) = self.settings.save_config() {
+        error!("Error saving: {}", e);
+      } else {
+        self.last_save = Some(Instant::now());
+      }
     }
   }
 
