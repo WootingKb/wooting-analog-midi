@@ -31,6 +31,8 @@ const MODIFIER_KEY: HIDCodes = HIDCodes::LeftShift;
 const AFTERTOUCH: bool = true;
 // How many times a second we'll check for updates on how much keys are pressed
 pub const REFRESH_RATE: f32 = 100.0; //Hz
+const MIDI_NOTE_MAX: u8 = 108;
+const MIDI_NOTE_MIN: u8 = 21;
 
 // NoteID Reference: https://newt.phys.unsw.edu.au/jw/notes.html
 pub type NoteID = u8;
@@ -79,7 +81,7 @@ impl NoteSink for MidiOutputConnection {
 pub struct Note {
     pub note_id: NoteID,
     pub pressed: bool,
-    shifted_amount: u8,
+    shifted_amount: i8,
     pub velocity: f32,
     pub channel: Channel,
 }
@@ -95,8 +97,13 @@ impl Note {
         }
     }
 
-    fn get_effective_note(&self) -> NoteID {
-        self.note_id + self.shifted_amount
+    fn get_effective_note(&self) -> Option<NoteID> {
+        let computed = self.note_id as i16 + self.shifted_amount as i16;
+        if computed >= MIDI_NOTE_MIN.into() && computed <= MIDI_NOTE_MAX.into() {
+            Some(computed as NoteID)
+        } else {
+            None
+        }
     }
 
     fn update_current_value(
@@ -104,7 +111,7 @@ impl Note {
         previous_value: f32,
         new_value: f32,
         sink: &mut impl NoteSink,
-        shifted_amount: u8,
+        shifted_amount: i8,
     ) -> Result<()> {
         self.velocity = f32::min(
             f32::max(
@@ -116,28 +123,32 @@ impl Note {
         // If the modifier pressed state has changed we need to make sure we turn the current note off because the note id will be changed
         if shifted_amount != self.shifted_amount {
             if self.pressed {
-                sink.note_off(self.get_effective_note(), self.velocity, self.channel)?;
+                if let Some(effective_note) = self.get_effective_note() {
+                    sink.note_off(effective_note, self.velocity, self.channel)?;
+                }
                 self.pressed = false;
             }
         }
         self.shifted_amount = shifted_amount;
 
-        if new_value > THRESHOLD {
-            // 'Pressed'
-            if !self.pressed {
-                sink.note_on(self.get_effective_note(), self.velocity, self.channel)?;
-                self.pressed = true;
-            } else {
-                // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
-                if AFTERTOUCH && new_value != previous_value {
-                    sink.polyphonic_aftertouch(self.get_effective_note(), new_value, self.channel)?;
+        if let Some(effective_note) = self.get_effective_note() {
+            if new_value > THRESHOLD {
+                // 'Pressed'
+                if !self.pressed {
+                    sink.note_on(effective_note, self.velocity, self.channel)?;
+                    self.pressed = true;
+                } else {
+                    // While we are in the range of what we consider 'pressed' for the key & the note on has already been sent we send aftertouch
+                    if AFTERTOUCH && new_value != previous_value {
+                        sink.polyphonic_aftertouch(effective_note, new_value, self.channel)?;
+                    }
                 }
-            }
-        } else {
-            // 'Not Pressed'
-            if self.pressed {
-                sink.note_off(self.get_effective_note(), self.velocity, self.channel)?;
-                self.pressed = false;
+            } else {
+                // 'Not Pressed'
+                if self.pressed {
+                    sink.note_off(effective_note, self.velocity, self.channel)?;
+                    self.pressed = false;
+                }
             }
         }
 
@@ -147,7 +158,9 @@ impl Note {
     fn drop(&mut self, sink: &mut Option<impl NoteSink>) -> Result<()> {
         if let Some(sink) = sink {
             if self.pressed {
-                sink.note_off(self.get_effective_note(), self.velocity, self.channel)?;
+                if let Some(effective_note) = self.get_effective_note() {
+                    sink.note_off(effective_note, self.velocity, self.channel)?;
+                }
                 self.pressed = false;
             }
         }
@@ -174,7 +187,7 @@ impl Key {
         &mut self,
         new_value: f32,
         sink: &mut impl NoteSink,
-        shifted_amount: u8,
+        shifted_amount: i8,
     ) -> Result<()> {
         for note in self.notes.iter_mut() {
             note.update_current_value(self.current_value, new_value, sink, shifted_amount)?;
@@ -219,7 +232,7 @@ pub struct MidiService {
     pub port_options: Option<Vec<PortOption>>,
     connection: Option<MidiOutputConnection>,
     pub keys: HashMap<HIDCodes, Key>,
-    pub amount_to_shift: u8,
+    pub amount_to_shift: i8,
 }
 
 //TODO: Determine if this is safe (LUL imagine saying it may be safe when it literally says unsafe) or a different solution is required

@@ -8,6 +8,7 @@ import {
   backend,
   MidiUpdate,
   DeviceList,
+  MIDI_NOTE_MAX,
 } from "./backend";
 import { Piano } from "./components/Piano";
 
@@ -43,6 +44,10 @@ const SettingsBody = styled.div`
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
+`;
+
+const NumberInput = styled.input`
+  text-align: center;
 `;
 
 function App() {
@@ -212,7 +217,7 @@ function App() {
         <Column>
           <p>Shift Amount</p>
 
-          <input
+          <NumberInput
             type="number"
             value={appSettings.shift_amount}
             onChange={(event) => {
@@ -221,8 +226,8 @@ function App() {
                 shift_amount: parseInt(event.target.value),
               });
             }}
-            min="0"
-            max="255"
+            min={-MIDI_NOTE_MAX}
+            max={MIDI_NOTE_MAX}
           />
         </Column>
       </SettingsBody>

@@ -6,6 +6,9 @@ import * as _ from "lodash";
 
 type PortOption = [number, string, boolean];
 
+export const MIDI_NOTE_MIN = 21;
+export const MIDI_NOTE_MAX = 108;
+
 export type PortOptions = PortOption[];
 
 export enum DeviceType {

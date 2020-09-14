@@ -2,7 +2,7 @@ import React from "react";
 //@ts-ignore
 import { Piano } from "react-piano";
 import "react-piano/dist/styles.css";
-import { MidiEntry } from "../backend";
+import { MidiEntry, MIDI_NOTE_MAX, MIDI_NOTE_MIN } from "../backend";
 import { HIDCodes } from "../HidCodes";
 
 export interface MidiDataEntry {
@@ -26,7 +26,7 @@ export const PianoDisplay = React.memo((props: Props) => {
     <Piano
       playNote={(midiNumber: number) => props.changeMidiMap(midiNumber)}
       stopNote={() => null}
-      noteRange={{ first: 21, last: 108 }}
+      noteRange={{ first: MIDI_NOTE_MIN, last: MIDI_NOTE_MAX }}
       activeNotes={props.midiData
         .filter((data) => {
           return data.note.pressed;
