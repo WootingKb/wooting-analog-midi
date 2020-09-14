@@ -9,7 +9,7 @@ Experimental cross-platform Rust implementation for a Virtual MIDI device using 
 - [x] Polyphonic Aftertouch
 - [x] Interactively bind keys to MIDI notes per channel (left click bind, right click unbind)
 - [x] Channel Selection
-- [x] Shift key to shift Octave
+- [x] Shift key to shift configurable number of notes
 - [ ] Channel Aftertouch
 
 ## Project Status
@@ -114,6 +114,7 @@ yarn tauri build
 For more details & other commands, Tauri has a good reference for [development commands here](https://tauri.studio/docs/usage/development/development)
 
 ## Credits
+
 - Many thanks to microdee for [WootingPiano](https://github.com/microdee/WootingPiano) which served as a great inspiration for this project!
 - Thanks to @TriStateGenius for helping with behaviour & design and feedback during development!
 - Thanks to the awesome [midir](https://github.com/Boddlnagg/midir) project for the Rust midi backend!
