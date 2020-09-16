@@ -11,6 +11,7 @@ import {
   MIDI_NOTE_MAX,
 } from "./backend";
 import { Piano } from "./components/Piano";
+import { MIDIStateDisplay } from "./components/MIDIStateDisplay";
 
 const Row = styled.div`
   display: flex;
@@ -231,6 +232,7 @@ function App() {
           />
         </Column>
       </SettingsBody>
+      <MIDIStateDisplay midiState={midiState} />
     </AppRoot>
   );
 }

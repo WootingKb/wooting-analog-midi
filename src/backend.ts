@@ -44,7 +44,7 @@ export interface AppSettings {
 
 export interface MidiEntry {
   note: number;
-  value: number;
+  velocity: number;
   channel: number;
   pressed: boolean;
 }

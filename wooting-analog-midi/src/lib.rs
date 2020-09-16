@@ -113,13 +113,17 @@ impl Note {
         sink: &mut impl NoteSink,
         shifted_amount: i8,
     ) -> Result<()> {
-        self.velocity = f32::min(
-            f32::max(
-                f32::max(0.0, new_value - previous_value) * 2.0,
-                self.velocity * 0.9,
-            ),
-            1.0,
-        );
+        if new_value == 0.0 {
+            self.velocity = 0.0;
+        } else {
+            self.velocity = f32::min(
+                f32::max(
+                    f32::max(0.0, new_value - previous_value) * 2.0,
+                    self.velocity * 0.9,
+                ),
+                1.0,
+            );
+        }
         // If the modifier pressed state has changed we need to make sure we turn the current note off because the note id will be changed
         if shifted_amount != self.shifted_amount {
             if self.pressed {
