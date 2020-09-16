@@ -5,7 +5,7 @@ import "react-piano/dist/styles.css";
 import styled from "styled-components";
 import { MidiEntry, MIDI_NOTE_MAX, MIDI_NOTE_MIN } from "../backend";
 import { HIDCodes } from "../HidCodes";
-import { midiNumberToNote } from "../utils/notes";
+// import { midiNumberToNote } from "../utils/notes";
 
 export interface MidiDataEntry {
   key: HIDCodes;

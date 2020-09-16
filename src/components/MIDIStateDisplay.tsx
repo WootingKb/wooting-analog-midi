@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { MidiUpdate } from "../backend";
+import { MidiUpdate, MidiUpdateEntry } from "../backend";
 import { HIDCodes } from "../HidCodes";
 import { midiNumberToNote } from "../utils/notes";
 
@@ -9,12 +9,15 @@ const Grid = styled.div`
   grid-template-columns: 5em 5em auto;
 `;
 
-const AnalogKeyMeter = styled.meter`
+const AnalogKeyMeter = styled.div`
   width: 50%;
+  height: 1em;
 `;
 
-const NoteVelocityMeter = styled.meter`
+const NoteVelocityMeter = styled.div`
   width: 40%;
+  height: 0.5em;
+  align-self: center;
 `;
 
 interface KeyEntryProps {
@@ -72,35 +75,75 @@ interface Props {
 //   );
 // }
 
-export function MIDIStateDisplay(props: Props) {
-  const sorted = Object.entries(props.midiState.data ?? {}).sort(
-    (a, b) => b[1].value - a[1].value
-  );
-  const [key, entry] = sorted[0] ?? [undefined, undefined];
+export const MIDIStateDisplay = React.memo((props: Props) => {
+  const [activeEntry, setActiveEntry] = useState<
+    [string, MidiUpdateEntry] | undefined
+  >();
+
+  useEffect(() => {
+    const sorted = Object.entries(props.midiState.data ?? {}).sort(
+      (a, b) => b[1].value - a[1].value
+    );
+    const mostPressed = sorted[0];
+    if (!activeEntry || mostPressed[1].value > 0.0) {
+      setActiveEntry(mostPressed);
+    } else if (mostPressed[1].value === 0.0) {
+      const emptyEntry = props.midiState.data[activeEntry[0]] ?? {
+        ...activeEntry,
+        value: 0.0,
+      };
+      setActiveEntry((a) => [activeEntry[0], emptyEntry]);
+    }
+    // eslint-disable-next-line
+  }, [props.midiState]);
+
+  const [key, entry] = activeEntry ?? [undefined, undefined];
+  const value = entry?.value ?? 0;
   return (
     <>
       <Grid>
         <p>Key</p>
         <p>Note</p>
         <p>Value</p>
-        {key && entry.value > 0.0 && (
+        {key && entry && (
           <>
-            <KeyLabel index={1} noChildren={entry.notes.length} htmlFor={key}>
+            <KeyLabel
+              index={1}
+              noChildren={entry.notes?.length ?? 0}
+              htmlFor={key}
+            >
               {HIDCodes[parseInt(key)]}
             </KeyLabel>
             <div />
-            <AnalogKeyMeter key={key + "m"} id={key} value={entry.value} />
-            {entry.notes.map((noteEntry) => {
+            <AnalogKeyMeter
+              key={key + "m"}
+              style={{
+                backgroundImage: `linear-gradient(
+                        to right,
+                    rgb(${(1 - value) * 255}, ${value * 255},0) ${value * 100}%,
+                    white ${value * 100}%
+                  )`,
+              }}
+            />
+            {(entry.notes ?? []).map((noteEntry) => {
               const id = `n${noteEntry.note}`;
+              const velocity = noteEntry.velocity;
               return (
                 <>
-                  <label key={id + "l"} htmlFor={id}>
+                  <label key={id + "l"}>
                     {midiNumberToNote(noteEntry.note)}
                   </label>
                   <NoteVelocityMeter
                     key={id + "m"}
-                    id={id}
-                    value={noteEntry.velocity}
+                    style={{
+                      backgroundImage: `linear-gradient(
+                        to right,
+                        rgb(${(1 - velocity) * 255}, ${velocity * 255},0) ${
+                        velocity * 100
+                      }%,
+                        white ${velocity * 100}%
+                  )`,
+                    }}
                   />
                 </>
               );
@@ -110,4 +153,4 @@ export function MIDIStateDisplay(props: Props) {
       </Grid>
     </>
   );
-}
+});

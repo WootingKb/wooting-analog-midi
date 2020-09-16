@@ -49,7 +49,7 @@ export interface MidiEntry {
   pressed: boolean;
 }
 
-interface MidiUpdateEntry {
+export interface MidiUpdateEntry {
   value: number;
   notes: MidiEntry[];
 }
