@@ -8,7 +8,7 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use tauri::api::path::config_dir;
-use wooting_analog_midi::{Channel, FromPrimitive, HIDCodes, NoteID};
+use wooting_analog_midi::{Channel, FromPrimitive, HIDCodes, NoteConfig, NoteID};
 
 fn default_shift_amount() -> i8 {
   12
@@ -20,6 +20,8 @@ pub struct AppSettings {
   pub keymapping: HashMap<Channel, Vec<(u8, NoteID)>>,
   #[serde(default = "default_shift_amount")]
   pub shift_amount: i8,
+  #[serde(default)]
+  pub note_config: NoteConfig,
 }
 
 const CONFIG_DIR: &str = "wooting-midi";
@@ -133,6 +135,7 @@ impl Default for AppSettings {
       .cloned()
       .collect(),
       shift_amount: default_shift_amount(),
+      note_config: Default::default(),
     }
   }
 }

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./App";
 import styled from "styled-components";
+import { SettingsProvider } from "./settings-context";
 
 const Root = styled.div`
   color: white;
@@ -13,7 +14,9 @@ const Root = styled.div`
 ReactDOM.render(
   <React.StrictMode>
     <Root>
-      <App />
+      <SettingsProvider>
+        <App />
+      </SettingsProvider>
     </Root>
   </React.StrictMode>,
   document.getElementById("root")

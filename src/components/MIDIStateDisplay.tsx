@@ -1,7 +1,9 @@
+import { floor } from "lodash";
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { MidiUpdate, MidiUpdateEntry } from "../backend";
 import { HIDCodes } from "../HidCodes";
+import { useSettingsState } from "../settings-context";
 import { midiNumberToNote } from "../utils/notes";
 
 const Grid = styled.div`
@@ -18,6 +20,14 @@ const NoteVelocityMeter = styled.div`
   width: 40%;
   height: 0.5em;
   align-self: center;
+`;
+
+const AnalogThresholdIndicator = styled.div<{ threshold: number }>`
+  width: 2px;
+  background-color: black;
+  left: ${(props) => floor(props.threshold * 100)}%;
+  height: 100%;
+  position: relative;
 `;
 
 interface KeyEntryProps {
@@ -76,6 +86,7 @@ interface Props {
 // }
 
 export const MIDIStateDisplay = React.memo((props: Props) => {
+  const appSettings = useSettingsState();
   const [activeEntry, setActiveEntry] = useState<
     [string, MidiUpdateEntry] | undefined
   >();
@@ -85,9 +96,9 @@ export const MIDIStateDisplay = React.memo((props: Props) => {
       (a, b) => b[1].value - a[1].value
     );
     const mostPressed = sorted[0];
-    if (!activeEntry || mostPressed[1].value > 0.0) {
+    if (mostPressed && (!activeEntry || mostPressed[1].value > 0.0)) {
       setActiveEntry(mostPressed);
-    } else if (mostPressed[1].value === 0.0) {
+    } else if (activeEntry && (!mostPressed || mostPressed[1].value === 0.0)) {
       const emptyEntry = props.midiState.data[activeEntry[0]] ?? {
         ...activeEntry,
         value: 0.0,
@@ -120,11 +131,20 @@ export const MIDIStateDisplay = React.memo((props: Props) => {
               style={{
                 backgroundImage: `linear-gradient(
                         to right,
-                    rgb(${(1 - value) * 255}, ${value * 255},0) ${value * 100}%,
+                    ${
+                      value < appSettings.note_config.threshold
+                        ? "red"
+                        : "rgb(0, 255, 0)"
+                      // : `rgb(${(1 - value) * 255}, ${value * 255},0)`
+                    } ${value * 100}%,
                     white ${value * 100}%
                   )`,
               }}
-            />
+            >
+              <AnalogThresholdIndicator
+                threshold={appSettings.note_config.threshold}
+              />
+            </AnalogKeyMeter>
             {(entry.notes ?? []).map((noteEntry) => {
               const id = `n${noteEntry.note}`;
               const velocity = noteEntry.velocity;

@@ -4,6 +4,8 @@ import { EventEmitter } from "events";
 import { listen } from "tauri/api/event";
 import * as _ from "lodash";
 
+import { SettingsDispatch } from "./settings-context";
+
 type PortOption = [number, string, boolean];
 
 export const MIDI_NOTE_MIN = 21;
@@ -37,9 +39,14 @@ export interface DeviceInfo {
 
 export type DeviceList = DeviceInfo[];
 
+export interface NoteConfig {
+  threshold: number;
+}
+
 export interface AppSettings {
   keymapping: { [channel: string]: [HIDCodes, number][] };
   shift_amount: number;
+  note_config: NoteConfig;
 }
 
 export interface MidiEntry {
@@ -74,6 +81,7 @@ export class Backend extends EventEmitter {
   public hasDevices: boolean;
   public hasInitComplete: boolean;
   public connectedDeviceList: DeviceList;
+  public settingsDispatcher?: SettingsDispatch;
 
   constructor() {
     super();
@@ -108,6 +116,20 @@ export class Backend extends EventEmitter {
       this.hasInitComplete = true;
       this.emit("init-complete");
     });
+  }
+
+  setSettingsDispatcher(dispatch: SettingsDispatch) {
+    if (!this.settingsDispatcher) {
+      this.settingsDispatcher = dispatch;
+      this.onInitComplete(() => {
+        this.requestConfig().then((settings) => {
+          console.log("requested ", settings);
+          dispatch({ type: "INIT", value: settings });
+        });
+      });
+    } else {
+      this.settingsDispatcher = dispatch;
+    }
   }
 
   async getPortOptions(): Promise<PortOptions> {

@@ -231,6 +231,7 @@ impl App {
         error!("Error updating midi service mapping! {}", e);
       }
       midi.amount_to_shift = self.settings.shift_amount;
+      midi.set_note_config(self.settings.note_config.clone());
     }
     self.save_config();
   }

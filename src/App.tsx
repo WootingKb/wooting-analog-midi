@@ -2,28 +2,12 @@ import "core-js";
 import React, { useEffect, useState } from "react";
 import { MidiDataEntry } from "./components/PianoDisplay";
 import styled from "styled-components";
-import {
-  AppSettings,
-  PortOptions,
-  backend,
-  MidiUpdate,
-  DeviceList,
-  MIDI_NOTE_MAX,
-} from "./backend";
+import { PortOptions, backend, MidiUpdate, DeviceList } from "./backend";
 import { Piano } from "./components/Piano";
 import { MIDIStateDisplay } from "./components/MIDIStateDisplay";
-
-const Row = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-`;
-
-const Column = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
+import { useSettings } from "./settings-context";
+import { Settings } from "./components/Settings";
+import { Row } from "./components/common";
 
 const AppRoot = styled.div`
   padding: 1em;
@@ -41,32 +25,14 @@ const Body = styled.div`
   align-items: center;
 `;
 
-const SettingsBody = styled.div`
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-`;
-
-const NumberInput = styled.input`
-  text-align: center;
-`;
-
 function App() {
   const [midiState, setMidiState] = useState<MidiUpdate>({ data: {} });
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    keymapping: {},
-    shift_amount: 0,
-  });
+  const [appSettings, appSettingsDispatch] = useSettings();
   const [portOptions, setPortOptions] = useState<PortOptions>([]);
   const [selectedChannel, setSelectedChannel] = useState<number>(0);
   const [connectedDevices, setConnectedDevices] = useState<DeviceList>(
     backend.connectedDeviceList
   );
-
-  function settingsChanged(settings: AppSettings) {
-    setAppSettings(settings);
-    backend.updateSettings(settings);
-  }
 
   useEffect(() => {
     backend.on("found-devices", (devices: DeviceList) => {
@@ -87,13 +53,6 @@ function App() {
   useEffect(() => {
     backend.onInitComplete(() => {
       console.log("Init complete");
-      backend.requestConfig().then(function (settings) {
-        setAppSettings(settings);
-
-        // settings.keymapping[HIDCodes.ArrowUp] = 20;
-        // console.log(settings);
-        // updateSettings(settings);
-      });
 
       backend.getPortOptions().then((result) => {
         console.log(result);
@@ -201,12 +160,10 @@ function App() {
 
         <Piano
           changeMapping={(mapping) =>
-            settingsChanged({
-              ...appSettings,
-              keymapping: {
-                ...appSettings.keymapping,
-                [selectedChannel]: mapping,
-              },
+            appSettingsDispatch({
+              type: "CHANGE_MAPPING",
+              mapping,
+              channel: selectedChannel,
             })
           }
           pianoData={pianoData}
@@ -214,24 +171,7 @@ function App() {
           midiState={midiState}
         />
       </Body>
-      <SettingsBody>
-        <Column>
-          <p>Shift Amount</p>
-
-          <NumberInput
-            type="number"
-            value={appSettings.shift_amount}
-            onChange={(event) => {
-              settingsChanged({
-                ...appSettings,
-                shift_amount: parseInt(event.target.value),
-              });
-            }}
-            min={-MIDI_NOTE_MAX}
-            max={MIDI_NOTE_MAX}
-          />
-        </Column>
-      </SettingsBody>
+      <Settings />
       <MIDIStateDisplay midiState={midiState} />
     </AppRoot>
   );

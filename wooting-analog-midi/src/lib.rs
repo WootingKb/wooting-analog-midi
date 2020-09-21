@@ -24,7 +24,7 @@ const NOTE_OFF_MSG: u8 = 0x80;
 const POLY_AFTERTOUCH_MSG: u8 = 0xA0;
 // const VELOCITY: u8 = 0x64;
 // The analog threshold at which we consider a note being turned on
-const THRESHOLD: f32 = 0.1;
+// const THRESHOLD: f32 = 0.5;
 // What counts as a key being pressed. Currently used for modifier press detection
 const ACTUATION_POINT: f32 = 0.2;
 const MODIFIER_KEY: HIDCodes = HIDCodes::LeftShift;
@@ -77,6 +77,28 @@ impl NoteSink for MidiOutputConnection {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NoteConfig {
+    threshold: f32,
+    // Any new properties should have a default added to it to ensure old configs get pulled in properly
+}
+
+impl NoteConfig {
+    pub fn new(threshold: f32) -> Self {
+        NoteConfig { threshold }
+    }
+
+    pub fn threshold(&self) -> &f32 {
+        &self.threshold
+    }
+}
+
+impl Default for NoteConfig {
+    fn default() -> Self {
+        NoteConfig::new(0.1)
+    }
+}
+
 #[derive(Debug)]
 pub struct Note {
     pub note_id: NoteID,
@@ -112,6 +134,7 @@ impl Note {
         new_value: f32,
         sink: &mut impl NoteSink,
         shifted_amount: i8,
+        note_config: &NoteConfig,
     ) -> Result<()> {
         if new_value == 0.0 {
             self.velocity = 0.0;
@@ -136,7 +159,7 @@ impl Note {
         self.shifted_amount = shifted_amount;
 
         if let Some(effective_note) = self.get_effective_note() {
-            if new_value > THRESHOLD {
+            if new_value > *note_config.threshold() {
                 // 'Pressed'
                 if !self.pressed {
                     sink.note_on(effective_note, self.velocity, self.channel)?;
@@ -192,9 +215,16 @@ impl Key {
         new_value: f32,
         sink: &mut impl NoteSink,
         shifted_amount: i8,
+        note_config: &NoteConfig,
     ) -> Result<()> {
         for note in self.notes.iter_mut() {
-            note.update_current_value(self.current_value, new_value, sink, shifted_amount)?;
+            note.update_current_value(
+                self.current_value,
+                new_value,
+                sink,
+                shifted_amount,
+                note_config,
+            )?;
         }
 
         self.current_value = new_value;
@@ -237,6 +267,7 @@ pub struct MidiService {
     connection: Option<MidiOutputConnection>,
     pub keys: HashMap<HIDCodes, Key>,
     pub amount_to_shift: i8,
+    pub note_config: NoteConfig,
 }
 
 //TODO: Determine if this is safe (LUL imagine saying it may be safe when it literally says unsafe) or a different solution is required
@@ -251,6 +282,7 @@ impl MidiService {
             connection: None,
             keys: generate_note_mapping(),
             amount_to_shift: 0,
+            note_config: Default::default(),
         }
     }
 
@@ -268,6 +300,10 @@ impl MidiService {
             }
         }
         Ok(())
+    }
+
+    pub fn set_note_config(&mut self, note_config: NoteConfig) {
+        self.note_config = note_config;
     }
 
     // pub fn init(&mut self, connection_preference: Option<usize>) -> Result<(), Box<dyn Error>> {
@@ -396,6 +432,7 @@ impl MidiService {
                                 } else {
                                     0
                                 },
+                                &self.note_config,
                             )?;
                         }
                     }
