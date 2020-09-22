@@ -2,9 +2,9 @@ import { promisified } from "tauri/api/tauri";
 import { HIDCodes } from "./HidCodes";
 import { EventEmitter } from "events";
 import { listen } from "tauri/api/event";
-import * as _ from "lodash";
 
 import { SettingsDispatch } from "./settings-context";
+import { ServiceStateAction, ServiceStateDispatch } from "./state-context";
 
 type PortOption = [number, string, boolean];
 
@@ -77,37 +77,23 @@ async function callAppFunction<T>(name: string, args?: any): Promise<T> {
 
 export class Backend extends EventEmitter {
   static instance: Backend = new Backend();
-  private lastMidi: MidiUpdate;
-  public hasDevices: boolean;
   public hasInitComplete: boolean;
-  public connectedDeviceList: DeviceList;
   public settingsDispatcher?: SettingsDispatch;
+  public serviceDispatcher?: ServiceStateDispatch;
+  serviceActionsQueue: ServiceStateAction[] = [];
 
   constructor() {
     super();
 
-    // Handle listening for midi-update
-    this.lastMidi = { data: {} };
-    listen<string>("midi-update", (res) => {
-      const data = JSON.parse(res.payload) as MidiUpdate;
-      if (!_.isEqual(data, this.lastMidi)) this.emit("midi-update", data);
-      // Parse lastData again from payload. If we take data after the callacbk the equal check fails for unknown reason
-      this.lastMidi = JSON.parse(res.payload);
-    });
-    this.hasDevices = false;
-    this.connectedDeviceList = [];
-    listen<string>("found-devices", (res) => {
-      console.log("Found devices");
-      this.connectedDeviceList = JSON.parse(res.payload) as DeviceList;
-      this.hasDevices = true;
-      this.emit("found-devices", this.connectedDeviceList);
-    });
-
-    listen<string>("no-devices", (res) => {
-      console.log("No devices");
-      this.hasDevices = false;
-      this.connectedDeviceList = [];
-      this.emit("no-devices");
+    listen<string>("event", (res) => {
+      const payload = JSON.parse(res.payload) as ServiceStateAction;
+      // console.log("Received event ", payload);
+      if (this.serviceDispatcher) {
+        this.serviceDispatcher(payload);
+      } else {
+        console.log("Putting it in queue because we don't have a dispatcher");
+        this.serviceActionsQueue.push(payload);
+      }
     });
 
     this.hasInitComplete = false;
@@ -123,13 +109,27 @@ export class Backend extends EventEmitter {
       this.settingsDispatcher = dispatch;
       this.onInitComplete(() => {
         this.requestConfig().then((settings) => {
-          console.log("requested ", settings);
+          // console.log("requested ", settings);
           dispatch({ type: "INIT", value: settings });
         });
       });
     } else {
       this.settingsDispatcher = dispatch;
     }
+  }
+
+  setServiceDispatcher(dispatch: ServiceStateDispatch) {
+    // if (!this.serviceDispatcher) {
+    //   this.settingsDispatcher = dispatch;
+    // } else {
+    this.serviceDispatcher = dispatch;
+    if (this.serviceActionsQueue.length > 0) {
+      this.serviceActionsQueue.forEach((element) => {
+        dispatch(element);
+      });
+      this.serviceActionsQueue = [];
+    }
+    // }
   }
 
   async getPortOptions(): Promise<PortOptions> {

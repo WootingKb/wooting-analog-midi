@@ -1,9 +1,11 @@
+import _ from "lodash";
 import { floor } from "lodash";
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { MidiUpdate, MidiUpdateEntry } from "../backend";
+import { MidiUpdateEntry } from "../backend";
 import { HIDCodes } from "../HidCodes";
 import { useSettingsState } from "../settings-context";
+import { useMidiState } from "../state-context";
 import { midiNumberToNote } from "../utils/notes";
 
 const Grid = styled.div`
@@ -41,82 +43,23 @@ const KeyLabel = styled.label<KeyEntryProps>`
 `;
 
 interface Props {
-  midiState: MidiUpdate;
+  activeKey: string;
+  entry: MidiUpdateEntry;
 }
 
-// export function MIDIStateDisplay(props: Props) {
-//   let rows = 1;
-//   return (
-//     <>
-//       <Grid>
-//         <p>Key</p>
-//         <p>Note</p>
-//         <p>Value</p>
-//         {Object.entries(props.midiState.data).map(([key, entry], i) => {
-//           const workingRow = rows;
-//           rows += entry.notes.length + 1;
-//           return entry.value >= 0.0 ? (
-//             <>
-//               <KeyLabel
-//                 index={workingRow}
-//                 noChildren={entry.notes.length}
-//                 htmlFor={key}
-//               >
-//                 {HIDCodes[parseInt(key)]}
-//               </KeyLabel>
-//               <div />
-//               <AnalogKeyMeter id={key} value={entry.value} />
-//               {entry.notes.map((noteEntry) => {
-//                 const id = `n${noteEntry.note}`;
-//                 return (
-//                   <>
-//                     <label htmlFor={id}>{noteEntry.note}</label>
-//                     <NoteVelocityMeter id={id} value={noteEntry.velocity} />
-//                   </>
-//                 );
-//               })}
-//             </>
-//           ) : (
-//             <></>
-//           );
-//         })}
-//       </Grid>
-//     </>
-//   );
-// }
+const KeyNoteVelocityVisualise = React.memo(
+  (props: Props) => {
+    const appSettings = useSettingsState();
+    const entry = props.entry;
+    const key = props.activeKey;
+    const value = entry.value;
 
-export const MIDIStateDisplay = React.memo((props: Props) => {
-  const appSettings = useSettingsState();
-  const [activeEntry, setActiveEntry] = useState<
-    [string, MidiUpdateEntry] | undefined
-  >();
-
-  useEffect(() => {
-    const sorted = Object.entries(props.midiState.data ?? {}).sort(
-      (a, b) => b[1].value - a[1].value
-    );
-    const mostPressed = sorted[0];
-    if (mostPressed && (!activeEntry || mostPressed[1].value > 0.0)) {
-      setActiveEntry(mostPressed);
-    } else if (activeEntry && (!mostPressed || mostPressed[1].value === 0.0)) {
-      const emptyEntry = props.midiState.data[activeEntry[0]] ?? {
-        ...activeEntry,
-        value: 0.0,
-      };
-      setActiveEntry((a) => [activeEntry[0], emptyEntry]);
-    }
-    // eslint-disable-next-line
-  }, [props.midiState]);
-
-  const [key, entry] = activeEntry ?? [undefined, undefined];
-  const value = entry?.value ?? 0;
-  return (
-    <>
-      <Grid>
-        <p>Key</p>
-        <p>Note</p>
-        <p>Value</p>
-        {key && entry && (
+    return (
+      <>
+        <Grid>
+          <p>Key</p>
+          <p>Note</p>
+          <p>Value</p>
           <>
             <KeyLabel
               index={1}
@@ -130,15 +73,15 @@ export const MIDIStateDisplay = React.memo((props: Props) => {
               key={key + "m"}
               style={{
                 backgroundImage: `linear-gradient(
-                        to right,
-                    ${
-                      value < appSettings.note_config.threshold
-                        ? "red"
-                        : "rgb(0, 255, 0)"
-                      // : `rgb(${(1 - value) * 255}, ${value * 255},0)`
-                    } ${value * 100}%,
-                    white ${value * 100}%
-                  )`,
+                      to right,
+                  ${
+                    value < appSettings.note_config.threshold
+                      ? "red"
+                      : "rgb(0, 255, 0)"
+                    // : `rgb(${(1 - value) * 255}, ${value * 255},0)`
+                  } ${value * 100}%,
+                  white ${value * 100}%
+                )`,
               }}
             >
               <AnalogThresholdIndicator
@@ -157,20 +100,60 @@ export const MIDIStateDisplay = React.memo((props: Props) => {
                     key={id + "m"}
                     style={{
                       backgroundImage: `linear-gradient(
-                        to right,
-                        rgb(${(1 - velocity) * 255}, ${velocity * 255},0) ${
+                      to right,
+                      rgb(${(1 - velocity) * 255}, ${velocity * 255},0) ${
                         velocity * 100
                       }%,
-                        white ${velocity * 100}%
-                  )`,
+                      white ${velocity * 100}%
+                )`,
                     }}
                   />
                 </>
               );
             })}
           </>
-        )}
-      </Grid>
-    </>
+        </Grid>
+      </>
+    );
+  },
+  (a, b) => {
+    // console.log("Checking equality between ", a, b);
+    return _.isEqual(a, b);
+  }
+);
+
+export function MIDIStateDisplay() {
+  const midiState = useMidiState();
+  const [activeEntry, setActiveEntry] = useState<
+    [string, MidiUpdateEntry] | undefined
+  >();
+
+  useEffect(() => {
+    const sorted = Object.entries(midiState.data ?? {}).sort(
+      (a, b) => b[1].value - a[1].value
+    );
+    const mostPressed = sorted[0];
+    if (mostPressed && (!activeEntry || mostPressed[1].value > 0.0)) {
+      setActiveEntry(mostPressed);
+    } else if (activeEntry && (!mostPressed || mostPressed[1].value === 0.0)) {
+      // Only update the current one to an empty entry if it's not already empty
+      if (activeEntry[1].value > 0.0) {
+        const emptyEntry = midiState.data[activeEntry[0]] ?? {
+          ...activeEntry,
+          value: 0.0,
+        };
+        setActiveEntry([activeEntry[0], emptyEntry]);
+      }
+    }
+    // eslint-disable-next-line
+  }, [midiState]);
+
+  return activeEntry ? (
+    <KeyNoteVelocityVisualise
+      activeKey={activeEntry[0]}
+      entry={activeEntry[1]}
+    />
+  ) : (
+    <div />
   );
-});
+}

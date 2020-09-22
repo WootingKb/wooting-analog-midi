@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use wooting_analog_midi::{
-  Channel, DeviceInfo, MidiService, NoteID, WootingAnalogResult, REFRESH_RATE,
+  Channel, DeviceInfo, MidiService, NoteID, PortOption, WootingAnalogResult, REFRESH_RATE,
 };
 mod settings;
 use anyhow::{Context, Result};
@@ -36,7 +36,7 @@ use std::time::{Duration, Instant};
 pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
 const SAVE_THROTTLE: Duration = Duration::from_secs(5);
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct MidiEntry {
   note: NoteID,
   velocity: f32,
@@ -44,13 +44,13 @@ struct MidiEntry {
   pressed: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct MidiUpdateEntry {
   value: f32,
   notes: Vec<MidiEntry>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct MidiUpdate {
   data: HashMap<u8, MidiUpdateEntry>,
 }
@@ -130,6 +130,21 @@ impl App {
         }
       }
 
+      if let Err(e) = tx_inner
+        .send(AppEvent::PortOptions(
+          midi_service_inner
+            .read()
+            .unwrap()
+            .port_options
+            .as_ref()
+            .cloned()
+            .expect("There should be at least some port options"),
+        ))
+        .context("Error when sending FoundDevices event!")
+      {
+        output_err(e);
+      }
+
       while running_inner.load(Ordering::SeqCst) {
         let mut errored = false;
         // We have to do this hacky structure to ensure the write lock gets dropped before the read lock later on
@@ -161,7 +176,6 @@ impl App {
 
         if !errored {
           if !has_devices {
-            has_devices = true;
             let devices = midi_service_inner
               .read()
               .unwrap()
@@ -174,6 +188,8 @@ impl App {
               .context("Error when sending FoundDevices event!")
             {
               output_err(e);
+            } else {
+              has_devices = true;
             }
           }
 
@@ -207,7 +223,7 @@ impl App {
                 .collect(),
             };
             if let Err(e) = tx_inner.send(AppEvent::MidiUpdate(event_message)) {
-              error!("Error while sending App Update, {}", e);
+              error!("Error while sending App Update, {:#?}", e);
             }
           }
         }
@@ -228,7 +244,7 @@ impl App {
       let mut midi = self.midi_service.write().unwrap();
       //Update the service with the new mapping
       if let Err(e) = midi.update_mapping(&self.settings.get_proper_mapping()) {
-        error!("Error updating midi service mapping! {}", e);
+        error!("Error updating midi service mapping! {:#?}", e);
       }
       midi.amount_to_shift = self.settings.shift_amount;
       midi.set_note_config(self.settings.note_config.clone());
@@ -239,7 +255,7 @@ impl App {
   fn save_config(&mut self) {
     if self.last_save.is_none() || self.last_save.unwrap().elapsed() >= SAVE_THROTTLE {
       if let Err(e) = self.settings.save_config() {
-        error!("Error saving: {}", e);
+        error!("Error saving: {:#?}", e);
       } else {
         self.last_save = Some(Instant::now());
       }
@@ -314,18 +330,27 @@ impl Drop for App {
   }
 }
 
-fn output_err<T: std::fmt::Display>(error: T) -> T {
-  error!("Error: {}", error);
+// fn output_err<T: std::fmt::Display>(error: T) -> T {
+//   error!("Error: {:#?}", error);
+//   error
+// }
+fn output_err(error: anyhow::Error) -> anyhow::Error {
+  error!("Error: {:#?}", error);
   error
 }
 
 pub enum ChannelMessage {
   UpdateBindings,
 }
+
+#[derive(Serialize, Debug)]
+#[serde(tag = "type", content = "value")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AppEvent {
   MidiUpdate(MidiUpdate),
   NoDevices,
   FoundDevices(Vec<DeviceInfo>),
+  PortOptions(Vec<PortOption>),
 }
 
 fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
@@ -346,6 +371,11 @@ fn main() {
   let mut setup = false;
   tauri::AppBuilder::new()
     .setup(move |webview, _source| {
+      // if setup {
+      //   APP.write().unwrap().uninit();
+      //   setup = false;
+      // }
+
       if !setup {
         setup = true;
         let mut handle = webview.as_mut();
@@ -366,18 +396,20 @@ fn main() {
             .recv()
             // .map_err(|err| warn!("Error on event reciever: {}", err))
           {
-            match event {
-              AppEvent::MidiUpdate(update) => {
-                emit_event(&mut handle, "midi-update", Some(serde_json::to_string(&update).unwrap()));
+            emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
 
-              },
-              AppEvent::FoundDevices(devices) => {
-                emit_event(&mut handle, "found-devices", Some(serde_json::to_string(&devices).unwrap()));
-              },
-              AppEvent::NoDevices => {
-                emit_event(&mut handle, "no-devices", None);
-              }
-            }
+            // match event {
+            //   AppEvent::MidiUpdate(update) => {
+            //     emit_event(&mut handle, "midi-update", Some(serde_json::to_string(&update).unwrap()));
+
+            //   },
+            //   AppEvent::FoundDevices(devices) => {
+            //     emit_event(&mut handle, "found-devices", Some(serde_json::to_string(&devices).unwrap()));
+            //   },
+            //   AppEvent::NoDevices => {
+            //     emit_event(&mut handle, "no-devices", None);
+            //   }
+            // }
           }
         })
       }

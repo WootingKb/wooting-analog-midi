@@ -259,7 +259,7 @@ fn generate_note_mapping() -> HashMap<HIDCodes, Key> {
         .collect()
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PortOption(usize, String, bool);
 
 pub struct MidiService {

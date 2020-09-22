@@ -4,6 +4,7 @@ import "./index.css";
 import App from "./App";
 import styled from "styled-components";
 import { SettingsProvider } from "./settings-context";
+import { ServiceStateProvider } from "./state-context";
 
 const Root = styled.div`
   color: white;
@@ -14,9 +15,11 @@ const Root = styled.div`
 ReactDOM.render(
   <React.StrictMode>
     <Root>
-      <SettingsProvider>
-        <App />
-      </SettingsProvider>
+      <ServiceStateProvider>
+        <SettingsProvider>
+          <App />
+        </SettingsProvider>
+      </ServiceStateProvider>
     </Root>
   </React.StrictMode>,
   document.getElementById("root")
