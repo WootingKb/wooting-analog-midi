@@ -60,24 +60,16 @@ function ServiceStateProvider({ children }: ServiceStateProviderProps) {
     connectedDevices: [],
   });
 
-  // useEffect(() => {
-  //   if (state) {
-  //     backend.updateSettings(state);
-  //   }
-  // }, [state]);
-
   useEffect(() => {
     backend.setServiceDispatcher(dispatch);
   }, [dispatch]);
-  // console.log(state);
-  return state ? (
+
+  return (
     <ServiceStateStateContext.Provider value={state}>
       <ServiceStateDispatchContext.Provider value={dispatch}>
         {children}
       </ServiceStateDispatchContext.Provider>
     </ServiceStateStateContext.Provider>
-  ) : (
-    <div />
   );
 }
 
