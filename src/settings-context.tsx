@@ -9,6 +9,7 @@ type SettingsAction =
   | { type: "CHANGE_MAPPING"; mapping: [HIDCodes, number][]; channel: number }
   | { type: "NOTE_SHIFT_CHANGED"; value: number }
   | { type: "THRESHOLD_CHANGED"; value: number }
+  | { type: "VELOCITY_SCALE_CHANGED"; value: number }
   | InitAction<AppSettings>;
 export type SettingsDispatch = (action: SettingsAction) => void;
 type SettingsState = AppSettings;
@@ -24,7 +25,6 @@ function settingsReducer(
   state: SettingsState,
   action: SettingsAction
 ): SettingsState {
-  console.log(action);
   switch (action.type) {
     case "change":
       return action.settings;
@@ -45,6 +45,11 @@ function settingsReducer(
           ...state.note_config,
           threshold: action.value,
         },
+      };
+    case "VELOCITY_SCALE_CHANGED":
+      return {
+        ...state,
+        note_config: { ...state.note_config, velocity_scale: action.value },
       };
     default: {
       //@ts-ignore
@@ -85,7 +90,7 @@ function SettingsProvider({ children }: SettingsProviderProps) {
   useEffect(() => {
     backend.setSettingsDispatcher(dispatch);
   }, [dispatch]);
-  console.log(state);
+  // console.log(state);
   return state ? (
     <SettingsStateContext.Provider value={state}>
       <SettingsDispatchContext.Provider value={dispatch}>

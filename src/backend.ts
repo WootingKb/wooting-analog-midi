@@ -41,6 +41,7 @@ export type DeviceList = DeviceInfo[];
 
 export interface NoteConfig {
   threshold: number;
+  velocity_scale: number;
 }
 
 export interface AppSettings {

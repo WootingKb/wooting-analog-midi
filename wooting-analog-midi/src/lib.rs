@@ -77,25 +77,38 @@ impl NoteSink for MidiOutputConnection {
     }
 }
 
+fn default_velocity_scale() -> f32 {
+    2.0
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NoteConfig {
     threshold: f32,
+    #[serde(default = "default_velocity_scale")]
+    velocity_scale: f32,
     // Any new properties should have a default added to it to ensure old configs get pulled in properly
 }
 
 impl NoteConfig {
-    pub fn new(threshold: f32) -> Self {
-        NoteConfig { threshold }
+    pub fn new(threshold: f32, velocity_scale: f32) -> Self {
+        NoteConfig {
+            threshold,
+            velocity_scale,
+        }
     }
 
     pub fn threshold(&self) -> &f32 {
         &self.threshold
     }
+
+    pub fn velocity_scale(&self) -> &f32 {
+        &self.velocity_scale
+    }
 }
 
 impl Default for NoteConfig {
     fn default() -> Self {
-        NoteConfig::new(0.1)
+        NoteConfig::new(0.1, default_velocity_scale())
     }
 }
 
@@ -141,7 +154,8 @@ impl Note {
         } else {
             self.velocity = f32::min(
                 f32::max(
-                    f32::max(0.0, new_value - previous_value) * 2.0,
+                    f32::max(0.0, new_value - previous_value) * note_config.velocity_scale()
+                        - self.velocity,
                     self.velocity * 0.9,
                 ),
                 1.0,

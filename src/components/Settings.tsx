@@ -8,6 +8,7 @@ const SettingsBody = styled.div`
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
+  justify-content: space-evenly;
 `;
 
 const NumberInput = styled.input`
@@ -55,6 +56,26 @@ export function Settings() {
           }}
           min={0}
           max={1}
+          step={0.1}
+        />
+      </Column>
+      <Column>
+        <p>Velocity Scale</p>
+
+        <NumberInput
+          type="number"
+          value={appSettings.note_config.velocity_scale.toPrecision(2)}
+          onChange={(event) => {
+            const value = parseFloat(event.target.value);
+            if (value !== appSettings.shift_amount) {
+              appSettingsDispatch({
+                type: "VELOCITY_SCALE_CHANGED",
+                value,
+              });
+            }
+          }}
+          min={0.1}
+          max={5}
           step={0.1}
         />
       </Column>
