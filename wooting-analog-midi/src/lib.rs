@@ -16,6 +16,7 @@ use anyhow::{Context, Result};
 use midir::{MidiOutput, MidiOutputConnection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::time::Instant;
 
 const DEVICE_BUFFER_MAX: usize = 5;
 const ANALOG_BUFFER_READ_MAX: usize = 40;
@@ -77,12 +78,17 @@ impl NoteSink for MidiOutputConnection {
     }
 }
 
+fn default_threshold() -> f32 {
+    0.5
+}
+
 fn default_velocity_scale() -> f32 {
-    2.0
+    5.0
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NoteConfig {
+    #[serde(default = "default_threshold")]
     threshold: f32,
     #[serde(default = "default_velocity_scale")]
     velocity_scale: f32,
@@ -108,7 +114,7 @@ impl NoteConfig {
 
 impl Default for NoteConfig {
     fn default() -> Self {
-        NoteConfig::new(0.1, default_velocity_scale())
+        NoteConfig::new(default_threshold(), default_velocity_scale())
     }
 }
 
@@ -119,6 +125,7 @@ pub struct Note {
     shifted_amount: i8,
     pub velocity: f32,
     pub channel: Channel,
+    pub lower_press_time: Option<(Instant, f32)>,
 }
 
 impl Note {
@@ -129,6 +136,7 @@ impl Note {
             velocity: 0.0,
             shifted_amount: 0,
             channel,
+            lower_press_time: None,
         }
     }
 
@@ -149,18 +157,50 @@ impl Note {
         shifted_amount: i8,
         note_config: &NoteConfig,
     ) -> Result<()> {
-        if new_value == 0.0 {
+        // if new_value == 0.0 {
+        //     self.velocity = 0.0;
+        // } else {
+        //     self.velocity = f32::min(
+        //         f32::max(
+        //             f32::max(0.0, new_value - previous_value) * note_config.velocity_scale()
+        //                 - self.velocity,
+        //             // This mainly  effects how quickly the velocity decays when there's little movement
+        //             self.velocity * 0.90,
+        //         ),
+        //         1.0,
+        //     );
+        // }
+        // Initialise the
+        if (new_value > 0.0 && previous_value == 0.0 && new_value < note_config.threshold)
+            || new_value == 0.0
+        {
+            self.lower_press_time = Some((Instant::now(), new_value));
+
             self.velocity = 0.0;
         } else {
-            self.velocity = f32::min(
-                f32::max(
-                    f32::max(0.0, new_value - previous_value) * note_config.velocity_scale()
-                        - self.velocity,
-                    self.velocity * 0.9,
-                ),
-                1.0,
-            );
+            let (prev_time, prev_depth) = self.lower_press_time.expect("No previous press time");
+            let duration = prev_time.elapsed().as_secs_f32();
+            // If there's no change there's no velocity
+            if new_value == prev_depth {
+                self.velocity = 0.0;
+            } else {
+                self.velocity = f32::min(
+                    f32::max(
+                        ((new_value - prev_depth) / duration)
+                            * (note_config.velocity_scale() / 100.0), // The / 100 is to change the scale of the velocity scale, without it, you have to be working with very small decimal numbers to make noticeable differences in the scale of the velocity
+                        0.0,
+                    ),
+                    1.0,
+                );
+            }
+            // If the value has gone down or there's little difference between the saved previous depth and the new one, so we want to take the time again so the velocity estimate is more accurate
+            if (self.lower_press_time.expect("No press time").1 - new_value).abs() < 0.01
+                || new_value < previous_value - 0.01
+            {
+                self.lower_press_time = Some((Instant::now(), new_value));
+            }
         }
+
         // If the modifier pressed state has changed we need to make sure we turn the current note off because the note id will be changed
         if shifted_amount != self.shifted_amount {
             if self.pressed {
@@ -176,6 +216,13 @@ impl Note {
             if new_value > *note_config.threshold() {
                 // 'Pressed'
                 if !self.pressed {
+                    info!(
+                        "Triggering with velocity {:?}, prev {:?}, new_val {:?}, elapsed {:?}",
+                        self.velocity,
+                        self.lower_press_time,
+                        new_value,
+                        self.lower_press_time.unwrap().0.elapsed()
+                    );
                     sink.note_on(effective_note, self.velocity, self.channel)?;
                     self.pressed = true;
                 } else {
@@ -435,21 +482,19 @@ impl MidiService {
                     .get(&MODIFIER_KEY.to_u16().unwrap())
                     .unwrap_or(&0.0))
                     >= ACTUATION_POINT;
-                for (code, value) in analog_data.iter() {
-                    if let Some(hid_code) = HIDCodes::from_u16(*code) {
-                        if let Some(key) = self.keys.get_mut(&hid_code) {
-                            key.update_value(
-                                *value,
-                                self.connection.as_mut().unwrap(),
-                                if modifier_pressed {
-                                    self.amount_to_shift
-                                } else {
-                                    0
-                                },
-                                &self.note_config,
-                            )?;
-                        }
-                    }
+                for (key_id, key) in self.keys.iter_mut() {
+                    let code = key_id.to_u16().expect("Failed to convert HIDCode to u16");
+                    let value = analog_data.get(&code).unwrap_or(&0.0);
+                    key.update_value(
+                        *value,
+                        self.connection.as_mut().unwrap(),
+                        if modifier_pressed {
+                            self.amount_to_shift
+                        } else {
+                            0
+                        },
+                        &self.note_config,
+                    )?;
                 }
             }
             Err(e) => {

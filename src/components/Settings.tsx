@@ -64,7 +64,7 @@ export function Settings() {
 
         <NumberInput
           type="number"
-          value={appSettings.note_config.velocity_scale.toPrecision(2)}
+          value={appSettings.note_config.velocity_scale}
           onChange={(event) => {
             const value = parseFloat(event.target.value);
             if (value !== appSettings.shift_amount) {
@@ -75,7 +75,7 @@ export function Settings() {
             }
           }}
           min={0.1}
-          max={5}
+          max={20}
           step={0.1}
         />
       </Column>

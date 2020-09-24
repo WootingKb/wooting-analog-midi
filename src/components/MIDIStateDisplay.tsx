@@ -1,6 +1,6 @@
 import _ from "lodash";
 import { floor } from "lodash";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { MidiUpdateEntry } from "../backend";
 import { HIDCodes } from "../HidCodes";
@@ -25,8 +25,8 @@ const NoteVelocityMeter = styled.div`
 `;
 
 const AnalogThresholdIndicator = styled.div<{ threshold: number }>`
-  width: 2px;
-  background-color: black;
+  width: 3px;
+  background-color: lightblue;
   left: ${(props) => floor(props.threshold * 100)}%;
   height: 100%;
   position: relative;
@@ -45,6 +45,7 @@ const KeyLabel = styled.label<KeyEntryProps>`
 interface Props {
   activeKey: string;
   entry: MidiUpdateEntry;
+  maxVelocity: number;
 }
 
 const KeyNoteVelocityVisualise = React.memo(
@@ -107,7 +108,9 @@ const KeyNoteVelocityVisualise = React.memo(
                       white ${velocity * 100}%
                 )`,
                     }}
-                  />
+                  >
+                    <AnalogThresholdIndicator threshold={props.maxVelocity} />
+                  </NoteVelocityMeter>
                 </>
               );
             })}
@@ -122,11 +125,21 @@ const KeyNoteVelocityVisualise = React.memo(
   }
 );
 
+function usePrevious<T>(value: T): T | undefined {
+  const ref = useRef<T>();
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
+
 export function MIDIStateDisplay() {
   const midiState = useMidiState();
   const [activeEntry, setActiveEntry] = useState<
     [string, MidiUpdateEntry] | undefined
   >();
+  const previousEntry = usePrevious(activeEntry);
+  const [maxVelocity, setMaxVelocity] = useState(0);
 
   useEffect(() => {
     const sorted = Object.entries(midiState.data ?? {}).sort(
@@ -148,10 +161,28 @@ export function MIDIStateDisplay() {
     // eslint-disable-next-line
   }, [midiState]);
 
+  useEffect(() => {
+    if (activeEntry && activeEntry[1].notes) {
+      const entry = activeEntry[1];
+      const note = entry.notes[0];
+      const previousPressed = previousEntry
+        ? (previousEntry[1].notes ?? [])[0]?.pressed ?? false
+        : false;
+
+      // If the note has just been triggered on, we want to take the velocity value and use that as a peak (i.e. the velocity at the moment the note was triggered)
+      if ((note?.pressed ?? false) && !previousPressed) {
+        setMaxVelocity(note.velocity);
+      }
+    } else {
+      setMaxVelocity(0);
+    }
+  }, [activeEntry, previousEntry]);
+
   return activeEntry ? (
     <KeyNoteVelocityVisualise
       activeKey={activeEntry[0]}
       entry={activeEntry[1]}
+      maxVelocity={maxVelocity}
     />
   ) : (
     <div />
