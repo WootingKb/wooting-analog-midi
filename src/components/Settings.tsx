@@ -28,7 +28,7 @@ export function Settings() {
           value={appSettings.shift_amount}
           onChange={(event) => {
             const value = parseInt(event.target.value);
-            if (value !== appSettings.shift_amount) {
+            if (value && value !== appSettings.shift_amount) {
               appSettingsDispatch({
                 type: "NOTE_SHIFT_CHANGED",
                 value,
@@ -47,7 +47,7 @@ export function Settings() {
           value={appSettings.note_config.threshold.toPrecision(2)}
           onChange={(event) => {
             const value = parseFloat(event.target.value);
-            if (value !== appSettings.shift_amount) {
+            if (value && value !== appSettings.shift_amount) {
               appSettingsDispatch({
                 type: "THRESHOLD_CHANGED",
                 value,
@@ -67,7 +67,7 @@ export function Settings() {
           value={appSettings.note_config.velocity_scale}
           onChange={(event) => {
             const value = parseFloat(event.target.value);
-            if (value !== appSettings.shift_amount) {
+            if (value && value !== appSettings.shift_amount) {
               appSettingsDispatch({
                 type: "VELOCITY_SCALE_CHANGED",
                 value,

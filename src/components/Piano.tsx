@@ -81,16 +81,21 @@ export function PianoBody() {
   const serviceState = useServiceState();
 
   useEffect(() => {
-    // On mac if we don't catch key events you can hear the system sound
-    // https://stackoverflow.com/questions/7992742/how-to-turn-off-keyboard-sounds-in-cocoa-application
     function cancelKeyEvent(e: KeyboardEvent) {
       e.preventDefault();
     }
-    window.addEventListener("keydown", cancelKeyEvent);
 
-    return () => {
-      window.removeEventListener("keydown", cancelKeyEvent);
-    };
+    // This may need to be expanded for Arm macs
+    if (navigator.platform === "MacIntel") {
+      // On mac if we don't catch key events you can hear the system sound
+      // https://stackoverflow.com/questions/7992742/how-to-turn-off-keyboard-sounds-in-cocoa-application
+
+      window.addEventListener("keydown", cancelKeyEvent);
+
+      return () => {
+        window.removeEventListener("keydown", cancelKeyEvent);
+      };
+    }
   }, []);
 
   let pianoData: MidiDataEntry[] = [];
