@@ -177,7 +177,7 @@ impl Note {
             self.lower_press_time = Some((Instant::now(), new_value));
 
             self.velocity = 0.0;
-        } else {
+        } else if self.lower_press_time.is_some() {
             let (prev_time, prev_depth) = self.lower_press_time.expect("No previous press time");
             let duration = prev_time.elapsed().as_secs_f32();
             // If there's no change there's no velocity
