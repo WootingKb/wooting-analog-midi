@@ -202,15 +202,15 @@ impl Note {
         }
 
         // If the modifier pressed state has changed we need to make sure we turn the current note off because the note id will be changed
-        if shifted_amount != self.shifted_amount {
-            if self.pressed {
-                if let Some(effective_note) = self.get_effective_note() {
-                    sink.note_off(effective_note, self.velocity, self.channel)?;
-                }
-                self.pressed = false;
-            }
+        if shifted_amount != self.shifted_amount && !self.pressed {
+            // if self.pressed {
+            //     if let Some(effective_note) = self.get_effective_note() {
+            //         sink.note_off(effective_note, self.velocity, self.channel)?;
+            //     }
+            //     self.pressed = false;
+            // }
+            self.shifted_amount = shifted_amount;
         }
-        self.shifted_amount = shifted_amount;
 
         if let Some(effective_note) = self.get_effective_note() {
             if new_value > *note_config.threshold() {
