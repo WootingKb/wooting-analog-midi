@@ -1,7 +1,7 @@
 {
   "name": "wooting-midi-app",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "./build/main-bundle.js",
   "repository": "git@github.com:simon-wh/WootingMidi.git",
   "author": "simon-wh <simon.whyte.lb@gmail.com>",
   "license": "MIT",
@@ -14,46 +14,40 @@
     "@types/node": "^12.0.0",
     "@types/react": "^16.9.0",
     "@types/react-dom": "^16.9.0",
-    "core-js": "^3.4.4",
+    "css-loader": "^5.0.1",
     "lodash": "^4.17.19",
+    "node-sass": "^5.0.0",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "react-piano": "^3.1.3",
-    "react-scripts": "3.4.1",
+    "react-scripts": "4.0",
+    "style-loader": "^2.0.0",
     "styled-components": "^5.1.1",
-    "tauri": "^0.14.1",
-    "typescript": "~3.7.2",
     "use-context-selector": "^1.1.3"
   },
   "scripts": {
-    "start": "craco start",
-    "build": "craco build",
-    "test": "craco test",
+    "dev": "webpack -w --mode=development",
+    "start": "electron .",
+    "build": "webpack --mode=production",
+    "build-native": "electron-build-env -- cargo build --manifest-path ./src/native/Cargo.toml --release",
     "all-tests": "cargo test --manifest-path src-tauri/Cargo.toml && cargo test --manifest-path wooting-analog-midi/Cargo.toml",
-    "eject": "react-scripts eject",
-    "tauri:source": "node ../../../../cli/tauri.js/bin/tauri",
-    "tauri:dev": "yarn tauri:source dev",
-    "tauri:build": "yarn tauri:source build"
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": "react-app"
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version",
-      "IE 11"
-    ]
-  },
   "devDependencies": {
-    "@craco/craco": "5.6.4",
     "@types/lodash": "^4.14.157",
-    "@types/styled-components": "^5.1.1"
-  }
+    "@types/styled-components": "^5.1.1",
+    "electron": "^11.2.3",
+    "electron-build-env": "^0.2.0",
+    "native-ext-loader": "^2.3.0",
+    "ts-loader": "^8.0.15",
+    "typescript": "~4.1.3",
+    "webpack-cli": "^4.5.0",
+    "webpack-node-externals": "^2.5.2"
+  },
+  "browserslist": [
+    "last 2 electron versions"
+  ]
 }

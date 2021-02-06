@@ -1,7 +1,7 @@
 import React from "react";
 //@ts-ignore
 import { Piano } from "react-piano";
-import "react-piano/dist/styles.css";
+import "./piano-styles.css";
 import styled from "styled-components";
 import { MidiEntry, MIDI_NOTE_MAX, MIDI_NOTE_MIN } from "../backend";
 import { HIDCodes } from "../HidCodes";

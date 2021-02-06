@@ -1,10 +1,11 @@
-import { promisified } from "tauri/api/tauri";
+// import { promisified } from "tauri/api/tauri";
 import { HIDCodes } from "./HidCodes";
 import { EventEmitter } from "events";
-import { listen } from "tauri/api/event";
+// import { listen } from "tauri/api/event";
 
 import { SettingsDispatch } from "./settings-context";
 import { ServiceStateAction, ServiceStateDispatch } from "./state-context";
+import { app_command, hello, init_app } from "../native";
 
 type PortOption = [number, string, boolean];
 
@@ -67,12 +68,17 @@ export interface MidiUpdate {
 }
 
 async function callAppFunction<T>(name: string, args?: any): Promise<T> {
-  return await promisified<T>({
-    cmd: "function",
-    call: {
-      func: name,
-      ...args,
-    },
+  // return await promisified<T>({
+  //   cmd: "function",
+  //   call: {
+  //     func: name,
+  //     ...args,
+  //   },
+  // });
+  // throw new Error("Undefined");
+  return new Promise((resolve) => {
+    let result = app_command(JSON.stringify({ func: name, ...args }));
+    resolve(JSON.parse(result));
   });
 }
 
@@ -85,10 +91,27 @@ export class Backend extends EventEmitter {
 
   constructor() {
     super();
+    console.log(hello());
+    // listen<string>("event", (res) => {
+    //   const payload = JSON.parse(res.payload) as ServiceStateAction;
+    //   // console.log("Received event ", payload);
+    //   if (this.serviceDispatcher) {
+    //     this.serviceDispatcher(payload);
+    //   } else {
+    //     console.log("Putting it in queue because we don't have a dispatcher");
+    //     this.serviceActionsQueue.push(payload);
+    //   }
+    // });
 
-    listen<string>("event", (res) => {
-      const payload = JSON.parse(res.payload) as ServiceStateAction;
-      // console.log("Received event ", payload);
+    // this.hasInitComplete = false;
+    // listen<string>("init-complete", (res) => {
+    //   console.log("Received init complete");
+    //   this.hasInitComplete = true;
+    //   this.emit("init-complete");
+    // });
+    init_app((event) => {
+      const payload = JSON.parse(event) as ServiceStateAction;
+      console.log("Received event ", payload);
       if (this.serviceDispatcher) {
         this.serviceDispatcher(payload);
       } else {
@@ -96,13 +119,8 @@ export class Backend extends EventEmitter {
         this.serviceActionsQueue.push(payload);
       }
     });
-
-    this.hasInitComplete = false;
-    listen<string>("init-complete", (res) => {
-      console.log("Received init complete");
-      this.hasInitComplete = true;
-      this.emit("init-complete");
-    });
+    this.emit("init-complete");
+    this.hasInitComplete = true;
   }
 
   setSettingsDispatcher(dispatch: SettingsDispatch) {

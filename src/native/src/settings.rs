@@ -7,7 +7,6 @@ use std::fs::create_dir;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use tauri::api::path::config_dir;
 use wooting_analog_midi::{Channel, FromPrimitive, HIDCodes, NoteConfig, NoteID};
 
 fn default_shift_amount() -> i8 {
@@ -28,7 +27,8 @@ const CONFIG_DIR: &str = "wooting-midi";
 const CONFIG_FILE: &str = "config.json";
 impl AppSettings {
   fn config_path() -> Result<PathBuf> {
-    let mut config_file = config_dir().context("No config dir!")?;
+    let mut config_file = PathBuf::new(); //config_dir().context("No config dir!")?;
+    config_file.push("/home/syte/.config/");
     config_file.push(CONFIG_DIR);
     if !config_file.exists() {
       create_dir(&config_file)?;

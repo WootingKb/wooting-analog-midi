@@ -1,0 +1,25 @@
+[package]
+name = "analog_midi"
+version = "0.1.0"
+authors = ["simon-wh <simon@wooting.io>"]
+license = "MIT"
+build = "build.rs"
+edition = "2018"
+exclude = ["artifacts.json", "index.node"]
+
+[lib]
+name = "analog_midi"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+neon-build = "0.7.1"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
+log = "0.4"
+env_logger = "0.7"
+wooting-analog-midi = { path = "../../wooting-analog-midi" }
+lazy_static = "1.4"
+anyhow = "1.0"
+neon = { version = "0.7", default-features = false, features = ["napi-4", "event-queue-api"] }

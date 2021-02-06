@@ -3,34 +3,23 @@
   windows_subsystem = "windows"
 )]
 
-extern crate env_logger;
-extern crate wooting_analog_midi;
-#[macro_use]
-extern crate lazy_static;
-// #[macro_use]
-// extern crate crossbeam_channel;
-#[allow(unused_imports)]
-#[macro_use]
-extern crate anyhow;
-
+use crate::settings::AppSettings;
+use anyhow::{Context, Result};
 #[allow(unused_imports)]
 use log::{error, info, warn};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::channel;
+use std::sync::mpsc::Receiver;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
+use std::time::{Duration, Instant};
 use wooting_analog_midi::{
   Channel, DeviceInfo, MidiService, NoteID, PortOption, WootingAnalogResult, REFRESH_RATE,
 };
-mod settings;
-use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use settings::AppSettings;
-use std::collections::HashMap;
-use std::sync::mpsc::channel;
-use std::sync::mpsc::Receiver;
-use std::time::{Duration, Instant};
 
 // This defines the rate at which midi updates are sent to the UI
 pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
@@ -74,7 +63,7 @@ pub enum AppFunction {
   SelectPort { option: usize },
 }
 
-struct App {
+pub struct App {
   settings: AppSettings,
   thread_pool: Vec<JoinHandle<()>>,
   midi_service: Arc<RwLock<MidiService>>,
@@ -83,7 +72,7 @@ struct App {
 }
 
 impl App {
-  fn new() -> Self {
+  pub fn new() -> Self {
     App {
       settings: AppSettings::default(),
       thread_pool: vec![],
@@ -93,7 +82,7 @@ impl App {
     }
   }
 
-  fn init(&mut self) -> Result<Receiver<AppEvent>> {
+  pub fn init(&mut self) -> Result<Receiver<AppEvent>> {
     self.settings = AppSettings::load_config().context("Failed to load App Settings")?;
     {
       let mut midi = self.midi_service.write().unwrap();
@@ -270,7 +259,7 @@ impl App {
     serde_json::to_value(&self.midi_service.read().unwrap().port_options).unwrap()
   }
 
-  fn exec_loop<F: 'static>(&mut self, mut f: F)
+  pub fn exec_loop<F: 'static>(&mut self, mut f: F)
   where
     F: FnMut() + Send,
   {
@@ -309,7 +298,7 @@ impl App {
     self.midi_service.write().unwrap().uninit();
   }
 
-  fn process_command(&mut self, command: AppFunction) -> Result<Value> {
+  pub fn process_command(&mut self, command: AppFunction) -> Result<Value> {
     match command {
       AppFunction::RequestConfig => Ok(self.get_config_string()),
       AppFunction::UpdateConfig { config } => {
@@ -353,91 +342,87 @@ pub enum AppEvent {
   PortOptions(Vec<PortOption>),
 }
 
-fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
-  if let Err(e) = tauri::event::emit(handle, String::from(event_name), param) {
-    error!("Error emitting event! {}", e);
-  }
-}
+// fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
+//   if let Err(e) = tauri::event::emit(handle, String::from(event_name), param) {
+//     error!("Error emitting event! {}", e);
+//   }
+// }
 
-lazy_static! {
-  static ref APP: RwLock<App> = RwLock::new(App::new());
-}
+// fn main() {
+//   if let Err(e) = env_logger::try_init() {
+//     warn!("Failed to init env_logger, {}", e);
+//   }
 
-fn main() {
-  if let Err(e) = env_logger::try_init() {
-    warn!("Failed to init env_logger, {}", e);
-  }
+//   let mut setup = false;
+//   tauri::AppBuilder::new()
+//     .setup(move |webview, _source| {
+//       // if setup {
+//       //   APP.write().unwrap().uninit();
+//       //   setup = false;
+//       // }
 
-  let mut setup = false;
-  tauri::AppBuilder::new()
-    .setup(move |webview, _source| {
-      // if setup {
-      //   APP.write().unwrap().uninit();
-      //   setup = false;
-      // }
+//       if !setup {
+//         setup = true;
+//         let mut handle = webview.as_mut();
+//         let event_receiver = {
+//           match APP.write().unwrap().init() {
+//             Ok(recv) => recv,
+//             Err(e) => {
+//               let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
+//               error!("{}", message);
+//               tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
+//               panic!(format!("{}", e));
+//             }
+//           }
+//         };
 
-      if !setup {
-        setup = true;
-        let mut handle = webview.as_mut();
-        let event_receiver = {
-          match APP.write().unwrap().init() {
-            Ok(recv) => recv,
-            Err(e) => {
-              let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
-              error!("{}", message);
-              tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
-              panic!(format!("{}", e));
-            }
-          }
-        };
+//         APP.write().unwrap().exec_loop(move || {
+//           if let Ok(event) = event_receiver
+//             .recv()
+//             // .map_err(|err| warn!("Error on event reciever: {}", err))
+//           {
+//             emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
 
-        APP.write().unwrap().exec_loop(move || {
-          if let Ok(event) = event_receiver
-            .recv()
-            // .map_err(|err| warn!("Error on event reciever: {}", err))
-          {
-            emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
+//             // match event {
+//             //   AppEvent::MidiUpdate(update) => {
+//             //     emit_event(&mut handle, "midi-update", Some(serde_json::to_string(&update).unwrap()));
 
-            // match event {
-            //   AppEvent::MidiUpdate(update) => {
-            //     emit_event(&mut handle, "midi-update", Some(serde_json::to_string(&update).unwrap()));
-
-            //   },
-            //   AppEvent::FoundDevices(devices) => {
-            //     emit_event(&mut handle, "found-devices", Some(serde_json::to_string(&devices).unwrap()));
-            //   },
-            //   AppEvent::NoDevices => {
-            //     emit_event(&mut handle, "no-devices", None);
-            //   }
-            // }
-          }
-        })
-      }
-      let mut handle = webview.as_mut();
-      emit_event(&mut handle, "init-complete", None);
-    })
-    .invoke_handler(move |_webview, arg| match serde_json::from_str(arg) {
-      Err(e) => Err(e.to_string()),
-      Ok(command) => {
-        match command {
-          Cmd::Function {
-            call,
-            callback,
-            error,
-          } => {
-            tauri::execute_promise(
-              _webview,
-              move || APP.write().unwrap().process_command(call),
-              callback,
-              error,
-            );
-          }
-        }
-        Ok(())
-      }
-    })
-    .build()
-    .run();
-  println!("After run");
-  APP.write().unwrap().uninit();
-}
+//             //   },
+//             //   AppEvent::FoundDevices(devices) => {
+//             //     emit_event(&mut handle, "found-devices", Some(serde_json::to_string(&devices).unwrap()));
+//             //   },
+//             //   AppEvent::NoDevices => {
+//             //     emit_event(&mut handle, "no-devices", None);
+//             //   }
+//             // }
+//           }
+//         })
+//       }
+//       let mut handle = webview.as_mut();
+//       emit_event(&mut handle, "init-complete", None);
+//     })
+//     .invoke_handler(move |_webview, arg| match serde_json::from_str(arg) {
+//       Err(e) => Err(e.to_string()),
+//       Ok(command) => {
+//         match command {
+//           Cmd::Function {
+//             call,
+//             callback,
+//             error,
+//           } => {
+//             tauri::execute_promise(
+//               _webview,
+//               move || APP.write().unwrap().process_command(call),
+//               callback,
+//               error,
+//             );
+//           }
+//         }
+//         Ok(())
+//       }
+//     })
+//     .build()
+//     .run();
+//   println!("After run");
+//   APP.write().unwrap().uninit();
+// }
