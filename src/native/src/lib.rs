@@ -49,7 +49,7 @@ fn app_command(mut cx: FunctionContext) -> JsResult<JsUndefined> {
       let args = match result {
         Ok(response) => vec![cx.null().upcast::<JsValue>(), cx.string(response).upcast()],
         Err(e) => vec![
-          cx.string(format!("{:#?}", e)).upcast::<JsValue>(),
+          cx.error(format!("{:#?}", e)).unwrap().upcast::<JsValue>(),
           cx.null().upcast(),
         ],
       };
