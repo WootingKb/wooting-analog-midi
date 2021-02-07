@@ -30,8 +30,9 @@
     "start": "electron .",
     "build": "webpack --mode=production",
     "build-native": "electron-build-env -- cargo build --manifest-path ./src/native/Cargo.toml --release",
-    "all-tests": "cargo test --manifest-path src-tauri/Cargo.toml && cargo test --manifest-path wooting-analog-midi/Cargo.toml",
-    "eject": "react-scripts eject"
+    "all-tests": "cargo test --manifest-path wooting-analog-midi/Cargo.toml",
+    "eject": "react-scripts eject",
+    "postinstall": "yarn build-native"
   },
   "eslintConfig": {
     "extends": "react-app"
