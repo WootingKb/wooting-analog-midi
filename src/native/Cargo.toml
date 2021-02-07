@@ -19,6 +19,7 @@ path = "src/main.rs"
 neon-build = "0.7.1"
 
 [dependencies]
+directories = "3.0"
 ctrlc = "3.1.7"
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }

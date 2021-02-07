@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use directories::{BaseDirs, ProjectDirs, UserDirs};
 #[allow(unused_imports)]
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -27,9 +28,11 @@ const CONFIG_DIR: &str = "wooting-midi";
 const CONFIG_FILE: &str = "config.json";
 impl AppSettings {
   fn config_path() -> Result<PathBuf> {
-    let mut config_file = PathBuf::new(); //config_dir().context("No config dir!")?;
-    config_file.push("/home/syte/.config/");
-    config_file.push(CONFIG_DIR);
+    let mut config_file: PathBuf = ProjectDirs::from("", "", CONFIG_DIR)
+      .ok_or(anyhow!("Failed init on ProjectDirs"))
+      .map(|proj_dirs| proj_dirs.config_dir().into())
+      .context("Failed to get config dir")?;
+
     if !config_file.exists() {
       create_dir(&config_file)?;
     }
