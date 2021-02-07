@@ -25,17 +25,42 @@ fn hello(mut cx: FunctionContext) -> JsResult<JsString> {
   Ok(cx.string("hello node"))
 }
 
-fn app_command(mut cx: FunctionContext) -> JsResult<JsString> {
+fn app_command(mut cx: FunctionContext) -> JsResult<JsUndefined> {
   let arg = cx.argument::<JsString>(0)?.value(&mut cx);
-  match serde_json::from_str::<AppFunction>(&arg[..]) {
-    Err(e) => Err(anyhow!(e.to_string())),
-    Ok(command) => APP.write().unwrap().process_command(command).map(|value| {
-      cx.string(
-        serde_json::to_string(&value).expect("Failed to serialize command result value as string"),
-      )
-    }),
-  }
-  .map_err(|e| panic!("{}", e))
+  let callback = cx.argument::<JsFunction>(1)?.root(&mut cx);
+  let queue = cx.queue();
+  std::thread::spawn(move || {
+    use anyhow::Context;
+    let result = match serde_json::from_str::<AppFunction>(&arg[..]) {
+      Err(e) => Err(anyhow!(e.to_string())),
+      Ok(command) => APP
+        .write()
+        .unwrap()
+        .process_command(command)
+        .and_then(|value| {
+          serde_json::to_string(&value)
+            .context("Failed to serialize command result value as string")
+        }),
+    };
+
+    queue.send(move |mut cx| {
+      let callback = callback.into_inner(&mut cx);
+      let this = cx.undefined();
+      let args = match result {
+        Ok(response) => vec![cx.null().upcast::<JsValue>(), cx.string(response).upcast()],
+        Err(e) => vec![
+          cx.string(format!("{:#?}", e)).upcast::<JsValue>(),
+          cx.null().upcast(),
+        ],
+      };
+
+      callback.call(&mut cx, this, args)?;
+
+      Ok(())
+    });
+  });
+
+  Ok(cx.undefined())
 }
 
 fn init_app(mut cx: FunctionContext) -> JsResult<JsUndefined> {
