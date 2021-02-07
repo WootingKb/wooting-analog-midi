@@ -13,11 +13,9 @@ function createWindow() {
   });
 
   console.log("Creating window");
-  //   mainWindow.loadFile("../public/index.html");
   mainWindow.loadFile(path.join(__dirname, "../public/index.html"));
-  //   mainWindow.loadURL("https://google.co.uk");
 
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 }
 // console.log(hello());
 app.whenReady().then(createWindow);
