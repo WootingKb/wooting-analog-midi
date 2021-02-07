@@ -36,6 +36,7 @@ name = "analog_midi"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ctrlc",
  "env_logger",
  "lazy_static",
  "log",
