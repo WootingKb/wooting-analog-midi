@@ -31,7 +31,6 @@ use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
-use tauri::Manager;
 
 // This defines the rate at which midi updates are sent to the UI
 pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
@@ -54,25 +53,6 @@ struct MidiUpdateEntry {
 #[derive(Serialize, Debug)]
 pub struct MidiUpdate {
   data: HashMap<u8, MidiUpdateEntry>,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "cmd", rename_all = "camelCase")]
-pub enum Cmd {
-  Function {
-    call: AppFunction,
-    callback: String,
-    error: String,
-  },
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "func", rename_all = "camelCase")]
-pub enum AppFunction {
-  RequestConfig,
-  UpdateConfig { config: String },
-  PortOptions,
-  SelectPort { option: usize },
 }
 
 struct App {
@@ -271,6 +251,17 @@ impl App {
     serde_json::to_value(&self.midi_service.read().unwrap().port_options).unwrap()
   }
 
+  fn get_port_options(&self) -> Vec<PortOption> {
+    self
+      .midi_service
+      .read()
+      .unwrap()
+      .port_options
+      .as_ref()
+      .cloned()
+      .unwrap_or(vec![])
+  }
+
   fn exec_loop<F: 'static>(&mut self, mut f: F)
   where
     F: FnMut() + Send,
@@ -283,17 +274,18 @@ impl App {
     }));
   }
 
-  fn select_port(&mut self, option: usize) -> Result<Value> {
+  fn select_port(&mut self, option: usize) -> Result<Vec<PortOption>> {
     self.midi_service.write().unwrap().select_port(option)?;
-    Ok(serde_json::to_value(
+    Ok(
       self
         .midi_service
         .read()
         .unwrap()
         .port_options
         .as_ref()
-        .unwrap(),
-    )?)
+        .cloned()
+        .unwrap_or(vec![]),
+    )
   }
 
   fn uninit(&mut self) {
@@ -308,20 +300,6 @@ impl App {
       }
     }
     self.midi_service.write().unwrap().uninit();
-  }
-
-  fn process_command(&mut self, command: AppFunction) -> Result<Value> {
-    match command {
-      AppFunction::RequestConfig => Ok(self.get_config_string()),
-      AppFunction::UpdateConfig { config } => {
-        let config = serde_json::from_str(&config[..]).unwrap();
-
-        self.update_config(config);
-        Ok(Value::Null)
-      }
-      AppFunction::PortOptions => Ok(self.get_port_options_string()),
-      AppFunction::SelectPort { option } => Ok(self.select_port(option)?),
-    }
   }
 }
 
@@ -340,10 +318,6 @@ fn output_err(error: anyhow::Error) -> anyhow::Error {
   error
 }
 
-pub enum ChannelMessage {
-  UpdateBindings,
-}
-
 #[derive(Serialize, Debug)]
 #[serde(tag = "type", content = "value")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -354,43 +328,53 @@ pub enum AppEvent {
   PortOptions(Vec<PortOption>),
 }
 
-// fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
-//   if let Err(e) = tauri::event::emit(handle, String::from(event_name), param) {
-//     error!("Error emitting event! {}", e);
-//   }
-// }
-
 lazy_static! {
   static ref APP: RwLock<App> = RwLock::new(App::new());
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct CommandError<'a> {
-  message: &'a str,
+struct CommandError {
+  message: String,
 }
 
-impl<'a> CommandError<'a> {
-  fn new(message: &'a str) -> Self {
+impl CommandError {
+  fn new(message: String) -> Self {
     Self { message }
   }
 }
 
-impl<'a> std::fmt::Display for CommandError<'a> {
+impl std::fmt::Display for CommandError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "{}", self.message)
   }
 }
 
-impl<'a> std::error::Error for CommandError<'a> {}
+impl std::error::Error for CommandError {}
+
+impl From<anyhow::Error> for CommandError {
+  fn from(err: anyhow::Error) -> CommandError {
+    CommandError::new(format!("{:#?}", err))
+  }
+}
 
 #[tauri::command]
-fn function_handler(call: AppFunction) -> Value {
-  if let Ok(res) = APP.write().unwrap().process_command(call) {
-    res
-  } else {
-    // Err(CommandError::new("").into())
-    Value::Null
-  }
+fn get_config() -> AppSettings {
+  APP.read().unwrap().settings.clone()
+}
+
+#[tauri::command]
+fn update_config(config: AppSettings) {
+  APP.write().unwrap().update_config(config);
+}
+
+#[tauri::command]
+fn get_port_options() -> Vec<PortOption> {
+  APP.write().unwrap().get_port_options()
+}
+
+#[tauri::command]
+fn select_port(option: usize) -> Result<Vec<PortOption>, CommandError> {
+  Ok(APP.write().unwrap().select_port(option)?)
 }
 
 fn main() -> Result<()> {
@@ -398,46 +382,7 @@ fn main() -> Result<()> {
     warn!("Failed to init env_logger, {}", e);
   }
 
-  // let mut setup = false;
-  tauri::Builder::default()
-    .setup(move |app| {
-      // if setup {
-      //   APP.write().unwrap().uninit();
-      //   setup = false;
-      // }
-
-      // if !setup {
-        // setup = true;
-      //   // let mut handle = webview.as_mut();
-      //   let event_receiver = {
-      //     match APP.write().unwrap().init() {
-      //       Ok(recv) => recv,
-      //       Err(e) => {
-      //         let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
-      //         error!("{}", message);
-      //         tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
-      //         panic!(format!("{}", e));
-      //       }
-      //     }
-      //   };
-
-      //   let app_inner = app.clone();
-      //   APP.write().unwrap().exec_loop(move || {
-      //     if let Ok(event) = event_receiver
-      //       .recv()
-      //       // .map_err(|err| warn!("Error on event reciever: {}", err))
-      //     {
-      //       // emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
-      //       app_inner.emit_all("event".to_string(), Some(serde_json::to_string(&event).expect("Failed to serialize event")));
-
-      //     }
-      //   });
-      // // }
-      // // let mut handle = webview.as_mut();
-      // // emit_event(&mut handle, "init-complete", None);
-      // app.emit_all::<()>("init-complete".to_string(), None)?;
-      Ok(())
-    }).on_page_load(|window, payload| {
+  tauri::Builder::default().on_page_load(move |window, _payload| {
       let event_receiver = {
         match APP.write().unwrap().init() {
           Ok(recv) => recv,
@@ -445,7 +390,7 @@ fn main() -> Result<()> {
             let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
             error!("{}", message);
             tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
-            panic!(format!("{}", e));
+            panic!("{}", e);
           }
         }
       };
@@ -456,17 +401,14 @@ fn main() -> Result<()> {
           .recv()
           // .map_err(|err| warn!("Error on event reciever: {}", err))
         {
-          // emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
-          window_inner.emit(&"event".to_string(), Some(serde_json::to_string(&event).expect("Failed to serialize event")));
+          window_inner.emit(&"event".to_string(), Some(serde_json::to_string(&event).expect("Failed to serialize event"))).expect("Failed to emit event");
 
         }
       });
-    // }
-    // let mut handle = webview.as_mut();
-    // emit_event(&mut handle, "init-complete", None);
-    window.emit::<()>(&"init-complete".to_string(), None);
+
+      window.emit::<()>(&"init-complete".to_string(), None).expect("Failed to emit init complete event");
     })
-    .invoke_handler(tauri::generate_handler![function_handler])
+    .invoke_handler(tauri::generate_handler![get_config, update_config, get_port_options, select_port])
     .run(tauri::generate_context!())?;
   println!("After run");
   APP.write().unwrap().uninit();

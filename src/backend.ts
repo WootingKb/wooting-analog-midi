@@ -67,11 +67,8 @@ export interface MidiUpdate {
 }
 
 async function callAppFunction<T>(name: string, args?: any): Promise<T> {
-  return await invoke<T>("function_handler", {
-    call: {
-      func: name,
-      ...args,
-    },
+  return await invoke<T>(name, {
+    ...args,
   });
 }
 
@@ -133,20 +130,22 @@ export class Backend extends EventEmitter {
   }
 
   async getPortOptions(): Promise<PortOptions> {
-    return callAppFunction("portOptions");
+    return callAppFunction("get_port_options");
   }
 
   async selectPort(option: number): Promise<PortOptions> {
-    return callAppFunction("selectPort", { option: option });
+    return callAppFunction<PortOptions>("select_port", {
+      option: option,
+    });
   }
 
   async requestConfig(): Promise<AppSettings> {
-    return callAppFunction("requestConfig");
+    return callAppFunction("get_config");
   }
 
   async updateSettings(settings: AppSettings): Promise<void> {
     //We have to pass it through as a string here because for some reason when it tries to deserialize itself it doesn't like the indexes for the keymap obj
-    return callAppFunction("updateConfig", {
+    return callAppFunction("update_config", {
       config: JSON.stringify(settings),
     });
   }

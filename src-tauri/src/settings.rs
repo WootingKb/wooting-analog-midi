@@ -14,7 +14,7 @@ fn default_shift_amount() -> i8 {
   12
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppSettings {
   //Channel -> [(key, note)]
   pub keymapping: HashMap<Channel, Vec<(u8, NoteID)>>,
