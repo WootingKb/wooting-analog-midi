@@ -1,18 +1,18 @@
+import { MoonIcon, SunIcon } from "@chakra-ui/icons";
+import {
+  HStack,
+  IconButton,
+  Select,
+  Text,
+  useColorMode,
+} from "@chakra-ui/react";
 import React from "react";
-import styled from "styled-components";
 import {
   selectPort,
   useDevices,
   usePortOptions,
   useServiceDispatch,
 } from "../state-context";
-import { Row } from "./common";
-
-const Heading = styled.div`
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-`;
 
 export function Header() {
   const devices = useDevices();
@@ -23,18 +23,25 @@ export function Header() {
     console.log("Selected " + choice);
     selectPort(serviceDispatch, choice);
   }
+  const { colorMode, toggleColorMode } = useColorMode();
 
   return (
-    <Heading>
-      <p>
+    <HStack justifyContent="space-between">
+      <Text>
         {devices.length > 0
           ? `Device '${devices[0].device_name}' is connected, you're all set!`
           : "No compatible devices could be found!"}
-      </p>
-      <Row>
-        <p>Output Port:</p>
+      </Text>
+      <HStack>
+        <IconButton
+          variant="ghost"
+          aria-label="Color Mode"
+          onClick={toggleColorMode}
+          icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
+        />
+        <Text minW="max-content">Output Port:</Text>
         {(portOptions?.length ?? 0) > 0 && (
-          <select
+          <Select
             value={portOptions.findIndex((item) => item[2])}
             onChange={(event) => {
               onPortSelectionChanged(parseInt(event.target.value));
@@ -45,9 +52,9 @@ export function Header() {
                 {item[1]}
               </option>
             ))}
-          </select>
+          </Select>
         )}
-      </Row>
-    </Heading>
+      </HStack>
+    </HStack>
   );
 }

@@ -1,17 +1,11 @@
 import React, { useEffect, useState } from "react";
-import styled from "styled-components";
 import { PianoDisplay, MidiDataEntry } from "./PianoDisplay";
 import { HIDCodes } from "../HidCodes";
 import { MidiUpdate } from "../backend";
 import { useSettings } from "../settings-context";
 import { useServiceState } from "../state-context";
-import { Row } from "./common";
+import { Box, HStack, Select, Text } from "@chakra-ui/react";
 
-const PianoHolder = styled.div`
-  width: 90%;
-  height: 6em;
-  padding: 1em;
-`;
 
 interface Props {
   changeMapping: (mapping: [HIDCodes, number][]) => void;
@@ -54,7 +48,10 @@ export function Piano(props: Props) {
 
   return (
     <>
-      <PianoHolder
+      <Box
+        width="90%"
+        height="12em"
+        padding="1em"
         onMouseDown={(event) => {
           // event.stopPropagation();
           setIsMousePressed(event.button);
@@ -67,7 +64,7 @@ export function Piano(props: Props) {
           midiData={props.pianoData}
           changeMidiMap={setNoteMapping}
         />
-      </PianoHolder>
+      </Box>
       {noteMapping && isMousePressed === 0 && (
         <div>{`Press a key to bind for MIDI note number ${noteMapping}`}</div>
       )}
@@ -125,9 +122,9 @@ export function PianoBody() {
 
   return (
     <>
-      <Row>
-        <p>Current Channel:</p>
-        <select
+      <HStack>
+        <Text minW="max-content">Current Channel:</Text>
+        <Select
           value={selectedChannel}
           onChange={(event) => {
             setSelectedChannel(parseInt(event.target.value));
@@ -138,8 +135,8 @@ export function PianoBody() {
               {i}
             </option>
           ))}
-        </select>
-      </Row>
+        </Select>
+      </HStack>
 
       <Piano
         changeMapping={(mapping) =>
