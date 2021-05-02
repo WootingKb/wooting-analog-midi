@@ -1,7 +1,7 @@
-import { promisified } from "tauri/api/tauri";
+import { invoke } from "@tauri-apps/api/tauri";
 import { HIDCodes } from "./HidCodes";
 import { EventEmitter } from "events";
-import { listen } from "tauri/api/event";
+import { listen } from "@tauri-apps/api/event";
 
 import { SettingsDispatch } from "./settings-context";
 import { ServiceStateAction, ServiceStateDispatch } from "./state-context";
@@ -67,8 +67,7 @@ export interface MidiUpdate {
 }
 
 async function callAppFunction<T>(name: string, args?: any): Promise<T> {
-  return await promisified<T>({
-    cmd: "function",
+  return await invoke<T>("function_handler", {
     call: {
       func: name,
       ...args,
@@ -110,7 +109,7 @@ export class Backend extends EventEmitter {
       this.settingsDispatcher = dispatch;
       this.onInitComplete(() => {
         this.requestConfig().then((settings) => {
-          // console.log("requested ", settings);
+          console.log("requested ", settings);
           dispatch({ type: "INIT", value: settings });
         });
       });

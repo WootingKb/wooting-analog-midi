@@ -31,6 +31,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
+use tauri::Manager;
 
 // This defines the rate at which midi updates are sent to the UI
 pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
@@ -353,91 +354,121 @@ pub enum AppEvent {
   PortOptions(Vec<PortOption>),
 }
 
-fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
-  if let Err(e) = tauri::event::emit(handle, String::from(event_name), param) {
-    error!("Error emitting event! {}", e);
-  }
-}
+// fn emit_event(handle: &mut tauri::WebviewMut, event_name: &str, param: Option<String>) {
+//   if let Err(e) = tauri::event::emit(handle, String::from(event_name), param) {
+//     error!("Error emitting event! {}", e);
+//   }
+// }
 
 lazy_static! {
   static ref APP: RwLock<App> = RwLock::new(App::new());
 }
 
-fn main() {
+#[derive(Debug, Clone, Serialize)]
+struct CommandError<'a> {
+  message: &'a str,
+}
+
+impl<'a> CommandError<'a> {
+  fn new(message: &'a str) -> Self {
+    Self { message }
+  }
+}
+
+impl<'a> std::fmt::Display for CommandError<'a> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.message)
+  }
+}
+
+impl<'a> std::error::Error for CommandError<'a> {}
+
+#[tauri::command]
+fn function_handler(call: AppFunction) -> Value {
+  if let Ok(res) = APP.write().unwrap().process_command(call) {
+    res
+  } else {
+    // Err(CommandError::new("").into())
+    Value::Null
+  }
+}
+
+fn main() -> Result<()> {
   if let Err(e) = env_logger::try_init() {
     warn!("Failed to init env_logger, {}", e);
   }
 
-  let mut setup = false;
-  tauri::AppBuilder::new()
-    .setup(move |webview, _source| {
+  // let mut setup = false;
+  tauri::Builder::default()
+    .setup(move |app| {
       // if setup {
       //   APP.write().unwrap().uninit();
       //   setup = false;
       // }
 
-      if !setup {
-        setup = true;
-        let mut handle = webview.as_mut();
-        let event_receiver = {
-          match APP.write().unwrap().init() {
-            Ok(recv) => recv,
-            Err(e) => {
-              let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
-              error!("{}", message);
-              tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
-              panic!(format!("{}", e));
-            }
-          }
-        };
+      // if !setup {
+        // setup = true;
+      //   // let mut handle = webview.as_mut();
+      //   let event_receiver = {
+      //     match APP.write().unwrap().init() {
+      //       Ok(recv) => recv,
+      //       Err(e) => {
+      //         let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
+      //         error!("{}", message);
+      //         tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
+      //         panic!(format!("{}", e));
+      //       }
+      //     }
+      //   };
 
-        APP.write().unwrap().exec_loop(move || {
-          if let Ok(event) = event_receiver
-            .recv()
-            // .map_err(|err| warn!("Error on event reciever: {}", err))
-          {
-            emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
+      //   let app_inner = app.clone();
+      //   APP.write().unwrap().exec_loop(move || {
+      //     if let Ok(event) = event_receiver
+      //       .recv()
+      //       // .map_err(|err| warn!("Error on event reciever: {}", err))
+      //     {
+      //       // emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
+      //       app_inner.emit_all("event".to_string(), Some(serde_json::to_string(&event).expect("Failed to serialize event")));
 
-            // match event {
-            //   AppEvent::MidiUpdate(update) => {
-            //     emit_event(&mut handle, "midi-update", Some(serde_json::to_string(&update).unwrap()));
-
-            //   },
-            //   AppEvent::FoundDevices(devices) => {
-            //     emit_event(&mut handle, "found-devices", Some(serde_json::to_string(&devices).unwrap()));
-            //   },
-            //   AppEvent::NoDevices => {
-            //     emit_event(&mut handle, "no-devices", None);
-            //   }
-            // }
-          }
-        })
-      }
-      let mut handle = webview.as_mut();
-      emit_event(&mut handle, "init-complete", None);
-    })
-    .invoke_handler(move |_webview, arg| match serde_json::from_str(arg) {
-      Err(e) => Err(e.to_string()),
-      Ok(command) => {
-        match command {
-          Cmd::Function {
-            call,
-            callback,
-            error,
-          } => {
-            tauri::execute_promise(
-              _webview,
-              move || APP.write().unwrap().process_command(call),
-              callback,
-              error,
-            );
+      //     }
+      //   });
+      // // }
+      // // let mut handle = webview.as_mut();
+      // // emit_event(&mut handle, "init-complete", None);
+      // app.emit_all::<()>("init-complete".to_string(), None)?;
+      Ok(())
+    }).on_page_load(|window, payload| {
+      let event_receiver = {
+        match APP.write().unwrap().init() {
+          Ok(recv) => recv,
+          Err(e) => {
+            let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
+            error!("{}", message);
+            tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
+            panic!(format!("{}", e));
           }
         }
-        Ok(())
-      }
+      };
+
+      let window_inner = window.clone();
+      APP.write().unwrap().exec_loop(move || {
+        if let Ok(event) = event_receiver
+          .recv()
+          // .map_err(|err| warn!("Error on event reciever: {}", err))
+        {
+          // emit_event(&mut handle, "event", Some(serde_json::to_string(&event).expect("Failed to serialize event")));
+          window_inner.emit(&"event".to_string(), Some(serde_json::to_string(&event).expect("Failed to serialize event")));
+
+        }
+      });
+    // }
+    // let mut handle = webview.as_mut();
+    // emit_event(&mut handle, "init-complete", None);
+    window.emit::<()>(&"init-complete".to_string(), None);
     })
-    .build()
-    .run();
+    .invoke_handler(tauri::generate_handler![function_handler])
+    .run(tauri::generate_context!())?;
   println!("After run");
   APP.write().unwrap().uninit();
+  Ok(())
 }
