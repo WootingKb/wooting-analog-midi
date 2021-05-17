@@ -18,11 +18,12 @@ wooting-analog-midi = { path = "../wooting-analog-midi" }
 lazy_static = "1.4"
 anyhow = "1.0"
 [dependencies.tauri]
-version = "1.0.0-beta-rc.4"
+version = "1.0.0-beta.1"
+features = ["api-all"]
 
 
 [build-dependencies]
-tauri-build = { version = "1.0.0-beta-rc.0" }
+tauri-build = { version = "1.0.0-beta.0" }
 
 [features]
 custom-protocol = [ "tauri/custom-protocol" ]

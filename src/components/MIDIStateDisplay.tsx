@@ -55,7 +55,7 @@ const KeyNoteVelocityVisualise = React.memo(
     const entry = props.entry;
     const key = props.activeKey;
     const value = entry.value;
-    const meterBgColor = useColorModeValue("white", "black");
+    const meterBgColor = useColorModeValue("gray", "black");
     return (
       <>
         <Grid>
@@ -136,9 +136,8 @@ function usePrevious<T>(value: T): T | undefined {
 
 export function MIDIStateDisplay() {
   const midiState = useMidiState();
-  const [activeEntry, setActiveEntry] = useState<
-    [string, MidiUpdateEntry] | undefined
-  >();
+  const [activeEntry, setActiveEntry] =
+    useState<[string, MidiUpdateEntry] | undefined>();
   const previousEntry = usePrevious(activeEntry);
   const [maxVelocity, setMaxVelocity] = useState(0);
 
