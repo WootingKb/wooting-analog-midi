@@ -1,9 +1,9 @@
 {
-  "name": "wooting-midi-app",
+  "name": "wooting-analog-midi-app",
   "version": "0.2.0",
   "main": "index.js",
-  "repository": "git@github.com:simon-wh/WootingMidi.git",
-  "author": "simon-wh <simon.whyte.lb@gmail.com>",
+  "repository": "https://github.com/WootingKb/wooting-analog-midi.git",
+  "author": "Wooting Technologies B.V.",
   "license": "MIT",
   "private": true,
   "dependencies": {
