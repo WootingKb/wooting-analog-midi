@@ -6,8 +6,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
 
-#[allow(unused_imports)]
-use log::{error, info};
+use log::*;
 use sdk::SDKResult;
 pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes, ToPrimitive, WootingAnalogResult};
 use wooting_analog_wrapper as sdk;
@@ -507,9 +506,11 @@ impl MidiService {
     pub fn uninit(&mut self) {
         info!("Uninitialising MidiService");
         sdk::uninitialise();
+        trace!("Sdk uninit done");
         if let Some(output) = self.connection.take() {
             output.close();
         }
+        trace!("MidiService uninit complete");
     }
 }
 impl Drop for MidiService {

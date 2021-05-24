@@ -13,8 +13,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
 
-#[allow(unused_imports)]
-use log::{error, info, warn};
+use log::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -243,13 +242,6 @@ impl App {
     }
   }
 
-  fn get_config_string(&self) -> Value {
-    serde_json::to_value(&self.settings).unwrap()
-  }
-
-  fn get_port_options_string(&self) -> Value {
-    serde_json::to_value(&self.midi_service.read().unwrap().port_options).unwrap()
-  }
 
   fn get_port_options(&self) -> Vec<PortOption> {
     self
@@ -293,12 +285,14 @@ impl App {
       error!("Error saving config! {}", e);
     }
 
+    trace!("waiting for thread");
     self.running.store(false, Ordering::SeqCst);
     for thread in self.thread_pool.drain(..) {
       if let Err(e) = thread.join() {
         error!("Error joining thread: {:?}", e);
       }
     }
+    trace!("thread wait done");
     self.midi_service.write().unwrap().uninit();
   }
 }
@@ -410,7 +404,8 @@ fn main() -> Result<()> {
     })
     .invoke_handler(tauri::generate_handler![get_config, update_config, get_port_options, select_port])
     .run(tauri::generate_context!())?;
-  println!("After run");
+  trace!("After run");
   APP.write().unwrap().uninit();
+  trace!("Uninit");
   Ok(())
 }
