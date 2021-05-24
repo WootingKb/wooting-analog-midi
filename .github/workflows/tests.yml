@@ -23,6 +23,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
+    - uses: c-hive/gha-yarn-cache@v1
     - uses: Swatinem/rust-cache@v1
       with:
         working-directory: src-tauri 

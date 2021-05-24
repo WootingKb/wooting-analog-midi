@@ -44,6 +44,10 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: 12
+    - uses: c-hive/gha-yarn-cache@v1
+    - uses: Swatinem/rust-cache@v1
+      with:
+        working-directory: src-tauri 
     - name: install Rust stable
       uses: actions-rs/toolchain@v1
       with:
