@@ -1,5 +1,5 @@
 {
-  "name": "wooting-analog-midi-app",
+  "name": "wooting-analog-midi",
   "version": "0.2.0",
   "main": "index.js",
   "repository": "https://github.com/WootingKb/wooting-analog-midi.git",

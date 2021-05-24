@@ -3873,18 +3873,6 @@ dependencies = [
 
 [[package]]
 name = "wooting-analog-midi"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "lazy_static",
- "log",
- "midir",
- "serde",
- "wooting-analog-wrapper",
-]
-
-[[package]]
-name = "wooting-analog-midi-app"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -3895,7 +3883,19 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
- "wooting-analog-midi",
+ "wooting-analog-midi-core",
+]
+
+[[package]]
+name = "wooting-analog-midi-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lazy_static",
+ "log",
+ "midir",
+ "serde",
+ "wooting-analog-wrapper",
 ]
 
 [[package]]

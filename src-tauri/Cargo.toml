@@ -1,5 +1,5 @@
 [package]
-name = "wooting-analog-midi-app"
+name = "wooting-analog-midi"
 version = "0.2.0"
 description = "Virtual MIDI input for Analog keyboards!"
 authors = [ "simon-wh", "PastaJ36" ]
@@ -14,7 +14,7 @@ serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 log = "0.4"
 env_logger = "0.8"
-wooting-analog-midi = { path = "../wooting-analog-midi" }
+wooting-analog-midi-core = { path = "../wooting-analog-midi-core" }
 lazy_static = "1.4"
 anyhow = "1.0"
 [dependencies.tauri]
