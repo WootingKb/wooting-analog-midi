@@ -432,11 +432,6 @@ impl MidiService {
                 return Ok(());
             }
 
-            // Close previous connection in advance
-            // if let Some(old) = self.connection.take() {
-            //     old.close();
-            // }
-
             let midi_out = MidiOutput::new("Wooting Analog MIDI Output")?;
             let ports = midi_out.ports();
             self.port_options = Some(
@@ -452,15 +447,6 @@ impl MidiService {
                     .connect(&ports[option], "wooting-analog-midi")
                     .map_err(|e| anyhow!("Error: {}", e))?,
             );
-
-            // for (i, port) in ports.iter().enumerate() {
-            //     let port_name = midi_out.port_name(&port)?;
-
-            //     if port_name == selection.1 {
-            //     } else {
-
-            //     }
-            // }
 
             Ok(())
         } else {
