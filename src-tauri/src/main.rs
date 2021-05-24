@@ -23,8 +23,7 @@ use wooting_analog_midi::{
 };
 mod settings;
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::{Serialize};
 use settings::AppSettings;
 use std::collections::HashMap;
 use std::sync::mpsc::channel;
