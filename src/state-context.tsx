@@ -115,9 +115,14 @@ function useDevices(): DeviceList {
 }
 
 function selectPort(dispatch: ServiceStateDispatch, option: number) {
-  backend.selectPort(option).then((ports) => {
-    dispatch({ type: "PORT_OPTIONS", value: ports });
-  });
+  backend
+    .selectPort(option)
+    .then((ports) => {
+      dispatch({ type: "PORT_OPTIONS", value: ports });
+    })
+    .catch((err) => {
+      console.error("Error while selecting ports ", err.message);
+    });
 }
 
 export {

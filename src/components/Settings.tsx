@@ -1,53 +1,52 @@
 import React from "react";
-import styled from "styled-components";
-import { Column } from "./common";
 import { MIDI_NOTE_MAX } from "../backend";
 import { useSettings } from "../settings-context";
-
-const SettingsBody = styled.div`
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-evenly;
-`;
-
-const NumberInput = styled.input`
-  text-align: center;
-`;
+import {
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  Text,
+  HStack,
+  VStack,
+} from "@chakra-ui/react";
 
 export function Settings() {
   const [appSettings, appSettingsDispatch] = useSettings();
 
   return (
-    <SettingsBody>
-      <Column>
-        <p>Shift Amount</p>
+    <HStack flexWrap="wrap" justifyContent="space-evenly">
+      <VStack>
+        <Text>Shift Amount</Text>
 
         <NumberInput
-          type="number"
           value={appSettings.shift_amount}
-          onChange={(event) => {
-            const value = parseInt(event.target.value);
-            if (value && value !== appSettings.shift_amount) {
+          min={-MIDI_NOTE_MAX}
+          max={MIDI_NOTE_MAX}
+          onChange={(_, value) => {
+            if (!isNaN(value) && value !== appSettings.shift_amount) {
               appSettingsDispatch({
                 type: "NOTE_SHIFT_CHANGED",
                 value,
               });
             }
           }}
-          min={-MIDI_NOTE_MAX}
-          max={MIDI_NOTE_MAX}
-        />
-      </Column>
-      <Column>
-        <p>Note Trigger Threshold</p>
+        >
+          <NumberInputField />
+          <NumberInputStepper>
+            <NumberIncrementStepper />
+            <NumberDecrementStepper />
+          </NumberInputStepper>
+        </NumberInput>
+      </VStack>
+      <VStack>
+        <Text>Note Trigger Threshold</Text>
 
         <NumberInput
-          type="number"
           value={appSettings.note_config.threshold.toPrecision(2)}
-          onChange={(event) => {
-            const value = parseFloat(event.target.value);
-            if (value && value !== appSettings.shift_amount) {
+          onChange={(_, value) => {
+            if (!isNaN(value) && value !== appSettings.shift_amount) {
               appSettingsDispatch({
                 type: "THRESHOLD_CHANGED",
                 value,
@@ -56,18 +55,23 @@ export function Settings() {
           }}
           min={0}
           max={1}
-          step={0.1}
-        />
-      </Column>
-      <Column>
-        <p>Velocity Scale</p>
+          step={0.01}
+        >
+          <NumberInputField />
+          <NumberInputStepper>
+            <NumberIncrementStepper />
+            <NumberDecrementStepper />
+          </NumberInputStepper>
+        </NumberInput>
+      </VStack>
+      <VStack>
+        <Text>Velocity Scale</Text>
 
         <NumberInput
           type="number"
           value={appSettings.note_config.velocity_scale}
-          onChange={(event) => {
-            const value = parseFloat(event.target.value);
-            if (value && value !== appSettings.shift_amount) {
+          onChange={(_, value) => {
+            if (!isNaN(value) && value !== appSettings.shift_amount) {
               appSettingsDispatch({
                 type: "VELOCITY_SCALE_CHANGED",
                 value,
@@ -77,8 +81,14 @@ export function Settings() {
           min={0.1}
           max={20}
           step={0.1}
-        />
-      </Column>
-    </SettingsBody>
+        >
+          <NumberInputField />
+          <NumberInputStepper>
+            <NumberIncrementStepper />
+            <NumberDecrementStepper />
+          </NumberInputStepper>
+        </NumberInput>
+      </VStack>
+    </HStack>
   );
 }

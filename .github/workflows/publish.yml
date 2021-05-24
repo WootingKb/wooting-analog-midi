@@ -6,58 +6,61 @@ on:
       - v[0-9]+.[0-9]+.[0-9]+
 
 jobs:
-  release:
-    runs-on: ${{ matrix.os }}
-    # env:
-    #   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-    # Platforms to build on/for
-    strategy:
-      matrix:
-        os: [macos-latest, windows-2019, ubuntu-20.04]
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      RELEASE_UPLOAD_ID: ${{ steps.create_release.outputs.id }}
 
     steps:
-      - uses: actions/checkout@v1
-
-      # - name: Setup Node.js and Yarn
-      #   uses: actions/setup-node@v1
-      #   with:
-      #     node-version: 10
-
-      # - name: Prepare Windows Build
-      #   if: startsWith(matrix.os, 'windows')
-      #   run: |
-      #     echo "::set-env name=CSC_LINK::${{ secrets.WIN_CSC_LINK }}"
-      #     echo "::set-env name=CSC_KEY_PASSWORD::${{ secrets.WIN_CSC_KEY_PASSWORD }}"
-
-      # - name: Prepare Mac Build
-      #   run: |
-      #     echo ::set-env name=CSC_LINK::${{ secrets.MAC_CSC_LINK }}
-      #     echo ::set-env name=CSC_KEY_PASSWORD::${{ secrets.MAC_CSC_KEY_PASSWORD }}
-      #     echo ::set-env name=APPLEID::${{ secrets.APPLEID }}
-      #     echo ::set-env name=APPLEIDPASS::${{ secrets.APPLEIDPASS }}
-      #   if: startsWith(matrix.os, 'mac')
-
-      - name: Prepare Linux Build
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt update && sudo apt install libdbus-1-dev libasound2-dev libwebkit2gtk-4.0-dev appmenu-gtk3-module libgtk-3-dev
-
-      - name: Install all yarn dependances
-        run: yarn
-
-      - name: Install tauri-bundler
-        run: cargo install tauri-bundler
-
-      - name: Build
-        run: |
-          yarn tauri build
-      - name: Create Release & Upload assets
-        uses: xresloader/upload-to-github-release@v1
+      - uses: actions/checkout@v2
+      - name: setup node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12
+      - name: get version
+        run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+      - name: create release
+        id: create_release
+        uses: actions/create-release@v1.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          file: "src-tauri/target/release/bundle/deb/*.deb;src-tauri/target/release/bundle/appimage/*.AppImage;src-tauri/target/release/bundle/dmg/*.dmg;src-tauri/target/release/bundle/msi/*.msi" #src-tauri/target/release/bundle/osx/*.app
-          tags: true
+          tag_name: app-v${{ env.PACKAGE_VERSION }}
+          release_name: "Desktop app v${{ env.PACKAGE_VERSION }}"
+          body: "See the assets to download this version and install."
           draft: true
+          prerelease: false
+  build-tauri:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: setup node
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+    - uses: c-hive/gha-yarn-cache@v1
+    - uses: Swatinem/rust-cache@v1
+      with:
+        working-directory: src-tauri 
+    - name: install Rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+    - name: install apt dependencies (ubuntu only)
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y webkit2gtk-4.0 libdbus-1-dev libasound2-dev
+    - name: install app dependencies and build it
+      run: yarn && yarn build
+    - uses: tauri-apps/tauri-action@v0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        releaseId: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}

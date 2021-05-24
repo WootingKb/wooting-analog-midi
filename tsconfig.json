@@ -18,7 +18,8 @@
     "downlevelIteration": true,
     "noEmit": true,
     "jsx": "react",
-    "module": "esnext"
+    "module": "esnext",
+    "noFallthroughCasesInSwitch": true
   },
   "include": [
     "src/"

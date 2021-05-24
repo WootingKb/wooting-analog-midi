@@ -6,8 +6,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
 
-#[allow(unused_imports)]
-use log::{error, info};
+use log::*;
 use sdk::SDKResult;
 pub use sdk::{DeviceInfo, FromPrimitive, HIDCodes, ToPrimitive, WootingAnalogResult};
 use wooting_analog_wrapper as sdk;
@@ -433,11 +432,6 @@ impl MidiService {
                 return Ok(());
             }
 
-            // Close previous connection in advance
-            // if let Some(old) = self.connection.take() {
-            //     old.close();
-            // }
-
             let midi_out = MidiOutput::new("Wooting Analog MIDI Output")?;
             let ports = midi_out.ports();
             self.port_options = Some(
@@ -453,15 +447,6 @@ impl MidiService {
                     .connect(&ports[option], "wooting-analog-midi")
                     .map_err(|e| anyhow!("Error: {}", e))?,
             );
-
-            // for (i, port) in ports.iter().enumerate() {
-            //     let port_name = midi_out.port_name(&port)?;
-
-            //     if port_name == selection.1 {
-            //     } else {
-
-            //     }
-            // }
 
             Ok(())
         } else {
@@ -507,9 +492,11 @@ impl MidiService {
     pub fn uninit(&mut self) {
         info!("Uninitialising MidiService");
         sdk::uninitialise();
+        trace!("Sdk uninit done");
         if let Some(output) = self.connection.take() {
             output.close();
         }
+        trace!("MidiService uninit complete");
     }
 }
 impl Drop for MidiService {

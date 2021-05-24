@@ -1,3 +1,4 @@
+import { useColorModeValue } from "@chakra-ui/color-mode";
 import _ from "lodash";
 import { floor } from "lodash";
 import React, { useEffect, useRef, useState } from "react";
@@ -54,7 +55,7 @@ const KeyNoteVelocityVisualise = React.memo(
     const entry = props.entry;
     const key = props.activeKey;
     const value = entry.value;
-
+    const meterBgColor = useColorModeValue("gray", "black");
     return (
       <>
         <Grid>
@@ -81,7 +82,7 @@ const KeyNoteVelocityVisualise = React.memo(
                       : "rgb(0, 255, 0)"
                     // : `rgb(${(1 - value) * 255}, ${value * 255},0)`
                   } ${value * 100}%,
-                  white ${value * 100}%
+                  ${meterBgColor} ${value * 100}%
                 )`,
               }}
             >
@@ -105,7 +106,7 @@ const KeyNoteVelocityVisualise = React.memo(
                       rgb(${(1 - velocity) * 255}, ${velocity * 255},0) ${
                         velocity * 100
                       }%,
-                      white ${velocity * 100}%
+                      ${meterBgColor} ${velocity * 100}%
                 )`,
                     }}
                   >
@@ -135,9 +136,8 @@ function usePrevious<T>(value: T): T | undefined {
 
 export function MIDIStateDisplay() {
   const midiState = useMidiState();
-  const [activeEntry, setActiveEntry] = useState<
-    [string, MidiUpdateEntry] | undefined
-  >();
+  const [activeEntry, setActiveEntry] =
+    useState<[string, MidiUpdateEntry] | undefined>();
   const previousEntry = usePrevious(activeEntry);
   const [maxVelocity, setMaxVelocity] = useState(0);
 

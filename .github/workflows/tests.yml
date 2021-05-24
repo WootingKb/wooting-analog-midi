@@ -6,17 +6,31 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    runs-on: ubuntu-20.04
+  test-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest] # , macos-latest, windows-latest
 
+    runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Install dependencies
-        run: |
-          sudo apt update && sudo apt install libdbus-1-dev libasound2-dev libwebkit2gtk-4.0-dev appmenu-gtk3-module libgtk-3-dev
-      - name: Setup
-        run: yarn
-      - name: Build
-        run: yarn run build
-      - name: Run tests
-        run: yarn run all-tests
+    - uses: actions/checkout@v2
+    - name: setup node
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+    - name: install Rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+    - uses: c-hive/gha-yarn-cache@v1
+    - uses: Swatinem/rust-cache@v1
+      with:
+        working-directory: src-tauri 
+    - name: install webkit2gtk (ubuntu only)
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y webkit2gtk-4.0 libdbus-1-dev libasound2-dev
+    - name: Run tests
+      run: yarn && yarn build && yarn run all-tests
