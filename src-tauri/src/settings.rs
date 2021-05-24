@@ -8,7 +8,7 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use tauri::api::path::config_dir;
-use wooting_analog_midi::{Channel, FromPrimitive, HIDCodes, NoteConfig, NoteID};
+use wooting_analog_midi_core::{Channel, FromPrimitive, HIDCodes, NoteConfig, NoteID};
 
 fn default_shift_amount() -> i8 {
   12

@@ -4,7 +4,7 @@
 )]
 
 extern crate env_logger;
-extern crate wooting_analog_midi;
+extern crate wooting_analog_midi_core;
 #[macro_use]
 extern crate lazy_static;
 // #[macro_use]
@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
-use wooting_analog_midi::{
+use wooting_analog_midi_core::{
   Channel, DeviceInfo, MidiService, NoteID, PortOption, WootingAnalogResult, REFRESH_RATE,
 };
 mod settings;
