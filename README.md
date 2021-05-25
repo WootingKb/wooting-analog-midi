@@ -70,7 +70,7 @@ sudo apt install squashfs-tools
 ### Directory Structure
 
 - `src` - React Frontend source code
-- `wooting-analog-midi` - Rust source for the virtual MIDI device using the [Wooting Analog SDK](https://github.com/WootingKb/wooting-analog-sdk)!
+- `wooting-analog-midi-core` - Rust source for the virtual MIDI device using the [Wooting Analog SDK](https://github.com/WootingKb/wooting-analog-sdk)!
 - `src-tauri` - The Tauri host process code which bootstraps the web view & contains the glue code between the React frontend and the Rust backend
 
 ### Get going
@@ -118,4 +118,4 @@ For more details & other commands, Tauri has a good reference for [development c
 - Many thanks to microdee for [WootingPiano](https://github.com/microdee/WootingPiano) which served as a great inspiration for this project!
 - Thanks to @TriStateGenius for helping with behaviour & design and feedback during development!
 - Thanks to the awesome [midir](https://github.com/Boddlnagg/midir) project for the Rust midi backend!
-- Thanks to all at [Tauri](https://tauri.studio/en/) for their awesome project!
+- Thanks to all at [Tauri](https://tauri.studio/) for their awesome project!

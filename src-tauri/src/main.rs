@@ -23,7 +23,7 @@ use wooting_analog_midi_core::{
 };
 mod settings;
 use anyhow::{Context, Result};
-use serde::{Serialize};
+use serde::Serialize;
 use settings::AppSettings;
 use std::collections::HashMap;
 use std::sync::mpsc::channel;
@@ -241,7 +241,6 @@ impl App {
     }
   }
 
-
   fn get_port_options(&self) -> Vec<PortOption> {
     self
       .midi_service
@@ -399,10 +398,10 @@ fn main() -> Result<()> {
         }
       });
 
-      window.emit::<()>(&"init-complete".to_string(), None).expect("Failed to emit init complete event");
+      window.emit::<String, Option<()>>(&"init-complete".to_string(), None).expect("Failed to emit init complete event");
     })
     .invoke_handler(tauri::generate_handler![get_config, update_config, get_port_options, select_port])
-    .run(tauri::generate_context!())?;
+    .run(tauri::generate_context!()).unwrap();
   trace!("After run");
   APP.write().unwrap().uninit();
   trace!("Uninit");
