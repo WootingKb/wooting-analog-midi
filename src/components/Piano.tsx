@@ -6,13 +6,14 @@ import { useSettings } from "../settings-context";
 import { useServiceState } from "../state-context";
 import { Box, HStack, Select, Text } from "@chakra-ui/react";
 
-
 interface Props {
   changeMapping: (mapping: [HIDCodes, number][]) => void;
   pianoData: MidiDataEntry[];
   mapping: [HIDCodes, number][];
   midiState: MidiUpdate;
 }
+
+let stopBindingTimeoutHandle: number | null = null;
 
 export function Piano(props: Props) {
   // Track if the mouse is pressed so we can avoid playNote triggering with keys
@@ -52,17 +53,25 @@ export function Piano(props: Props) {
         width="90%"
         height="12em"
         padding="1em"
-        onMouseDown={(event) => {
-          // event.stopPropagation();
-          setIsMousePressed(event.button);
-          setTimeout(() => {
-            setIsMousePressed(null);
-          }, 3000);
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
         }}
       >
         <PianoDisplay
           midiData={props.pianoData}
-          changeMidiMap={setNoteMapping}
+          changeMidiMap={(button, midi) => {
+            setIsMousePressed(button);
+            setNoteMapping(midi);
+            if (stopBindingTimeoutHandle !== null) {
+              clearTimeout(stopBindingTimeoutHandle);
+            }
+            stopBindingTimeoutHandle = setTimeout(() => {
+              setIsMousePressed(null);
+              setNoteMapping(null);
+              stopBindingTimeoutHandle = null;
+            }, 3000);
+          }}
         />
       </Box>
       {noteMapping && isMousePressed === 0 && (

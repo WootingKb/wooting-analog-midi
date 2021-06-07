@@ -1,3 +1,4 @@
+import { Box } from "@chakra-ui/react";
 import React from "react";
 //@ts-ignore
 import { Piano } from "react-piano";
@@ -35,7 +36,7 @@ const NoteKeybind = styled.small<{ isAccidental: boolean }>`
 
 interface Props {
   midiData: MidiDataEntry[];
-  changeMidiMap: (midiNumber: number) => void;
+  changeMidiMap: (mouseButton: number, midiNumber: number) => void;
 }
 
 // We need to be careful with the rendering of this component. Any rerenders reset animations (like click) in the piano display
@@ -53,8 +54,8 @@ export const PianoDisplay = React.memo((props: Props) => {
 
   return (
     <Piano
-      playNote={(midiNumber: number) => props.changeMidiMap(midiNumber)}
-      stopNote={() => null}
+      playNote={() => {}}
+      stopNote={() => {}}
       noteRange={{ first: MIDI_NOTE_MIN, last: MIDI_NOTE_MAX }}
       renderNoteLabel={(args: {
         keyboardShortcut: string;
@@ -63,21 +64,31 @@ export const PianoDisplay = React.memo((props: Props) => {
         isAccidental: boolean;
       }) => {
         const velocity = midiLookup.get(args.midiNumber)?.note?.velocity ?? 0;
-        return args.keyboardShortcut ? (
-          <NoteVelocityMeter
-            style={{
-              backgroundImage: `linear-gradient(
+        return (
+          <Box
+            w="100%"
+            h="100%"
+            onMouseDown={(event) =>
+              props.changeMidiMap(event.button, args.midiNumber)
+            }
+          >
+            {args.keyboardShortcut ? (
+              <NoteVelocityMeter
+                style={{
+                  backgroundImage: `linear-gradient(
             #f28f69 ${velocity * 100}%,
             rgba(0, 0, 0, 0) ${velocity * 100}%
           )`,
-            }}
-          >
-            {/* <NoteKeybind {...args}>
+                }}
+              >
+                {/* <NoteKeybind {...args}>
               {midiNumberToNote(args.midiNumber)}
             </NoteKeybind> */}
-            <NoteKeybind {...args}>{args.keyboardShortcut}</NoteKeybind>
-          </NoteVelocityMeter>
-        ) : null;
+                <NoteKeybind {...args}>{args.keyboardShortcut}</NoteKeybind>
+              </NoteVelocityMeter>
+            ) : null}
+          </Box>
+        );
       }}
       activeNotes={props.midiData
         .filter((data) => {

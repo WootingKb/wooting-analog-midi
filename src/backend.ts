@@ -146,7 +146,7 @@ export class Backend extends EventEmitter {
   async updateSettings(settings: AppSettings): Promise<void> {
     //We have to pass it through as a string here because for some reason when it tries to deserialize itself it doesn't like the indexes for the keymap obj
     return callAppFunction("update_config", {
-      config: JSON.stringify(settings),
+      config: settings,
     });
   }
 
