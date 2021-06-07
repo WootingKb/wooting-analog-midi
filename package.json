@@ -1,6 +1,6 @@
 {
   "name": "wooting-analog-midi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "index.js",
   "repository": "https://github.com/WootingKb/wooting-analog-midi.git",
   "author": "Wooting Technologies B.V.",
