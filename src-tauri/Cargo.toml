@@ -17,13 +17,13 @@ env_logger = "0.8"
 wooting-analog-midi-core = { path = "../wooting-analog-midi-core" }
 lazy_static = "1.4"
 anyhow = "1.0"
-[dependencies.tauri]
-version = "1.0.0-beta.1"
+
+  [dependencies.tauri]
+  version = "1.0.0-beta"
 features = ["api-all"]
 
-
 [build-dependencies]
-tauri-build = { version = "1.0.0-beta.0" }
+tauri-build = { version = "1.0.0-beta.3" }
 
 [features]
 custom-protocol = [ "tauri/custom-protocol" ]

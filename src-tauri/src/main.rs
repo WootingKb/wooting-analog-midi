@@ -398,7 +398,7 @@ fn main() -> Result<()> {
         }
       });
 
-      window.emit::<String, Option<()>>(&"init-complete".to_string(), None).expect("Failed to emit init complete event");
+      window.emit::<Option<()>>(&"init-complete".to_string(), None).expect("Failed to emit init complete event");
     })
     .invoke_handler(tauri::generate_handler![get_config, update_config, get_port_options, select_port])
     .run(tauri::generate_context!()).unwrap();
