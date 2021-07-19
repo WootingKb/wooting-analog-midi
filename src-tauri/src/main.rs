@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
+use tauri::{Menu, MenuItem};
 
 // This defines the rate at which midi updates are sent to the UI
 pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
@@ -373,8 +374,9 @@ fn main() -> Result<()> {
   if let Err(e) = env_logger::try_init() {
     warn!("Failed to init env_logger, {}", e);
   }
+  let menu = Menu::new().add_native_item(MenuItem::Quit);
 
-  tauri::Builder::default().on_page_load(move |window, _payload| {
+  tauri::Builder::default().menu(menu).on_page_load(move |window, _payload| {
       let event_receiver = {
         match APP.write().unwrap().init() {
           Ok(recv) => recv,

@@ -1274,6 +1274,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "gtk-source-sys"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "010ad29f87606c4bc91fe4ab6762cab3d5155af7100e59c1af9c6d9aba5df689"
+dependencies = [
+ "bitflags 1.2.1",
+ "cairo-sys-rs",
+ "gdk-pixbuf-sys",
+ "gdk-sys",
+ "gio-sys",
+ "glib-sys",
+ "gobject-sys",
+ "gtk-sys",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "gtk-sys"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2729,6 +2747,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "sourceview"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6197ca40c697b552b8d27cfa9d8ee15267037ac071f4c1010749625ba2fc8f79"
+dependencies = [
+ "bitflags 1.2.1",
+ "cairo-rs",
+ "gdk",
+ "gdk-pixbuf",
+ "gdk-pixbuf-sys",
+ "gdk-sys",
+ "gio",
+ "gio-sys",
+ "glib",
+ "glib-sys",
+ "gobject-sys",
+ "gtk",
+ "gtk-source-sys",
+ "gtk-sys",
+ "libc",
+ "pango",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2899,6 +2941,7 @@ dependencies = [
  "raw-window-handle",
  "scopeguard",
  "serde",
+ "sourceview",
  "unicode-segmentation",
  "winapi",
  "x11-dl",
