@@ -379,9 +379,9 @@ fn main() -> Result<()> {
         match APP.write().unwrap().init() {
           Ok(recv) => recv,
           Err(e) => {
-            let message = format!("\"{}\".\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
+            let message = format!("{}.\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
             error!("{}", message);
-            tauri::api::dialog::message(message, "Fatal error occured on initialisation!");
+            tauri::api::dialog::message("Fatal error occured on initialisation!", message);
             panic!("{}", e);
           }
         }
