@@ -8,8 +8,7 @@ edition = "2018"
 
 [dependencies]
 midir = "0.6"
-# wooting-analog-wrapper = { path="../../wooting-analog-sdk/wooting-analog-wrapper" }
-wooting-analog-wrapper = { git = "https://github.com/WootingKb/wooting-analog-sdk", branch = "feature/serde-derive" }
+wooting-analog-wrapper = { git = "https://github.com/WootingKb/wooting-analog-sdk", branch = "develop", features = ["serdes"] }
 # ctrlc = { version = "3", features = ["termination"] }
 log = "0.4"
 lazy_static = "1.4"
