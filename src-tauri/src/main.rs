@@ -383,7 +383,7 @@ fn main() -> Result<()> {
           Err(e) => {
             let message = format!("{}.\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
             error!("{}", message);
-            tauri::api::dialog::message("Fatal error occured on initialisation!", message);
+            tauri::api::dialog::message(Some(&window), "Fatal error occured on initialisation!", message);
             panic!("{}", e);
           }
         }
