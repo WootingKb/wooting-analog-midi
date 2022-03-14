@@ -74,7 +74,7 @@ async function callAppFunction<T>(name: string, args?: any): Promise<T> {
 
 export class Backend extends EventEmitter {
   static instance: Backend = new Backend();
-  public hasInitComplete: boolean;
+
   public settingsDispatcher?: SettingsDispatch;
   public serviceDispatcher?: ServiceStateDispatch;
   serviceActionsQueue: ServiceStateAction[] = [];
@@ -85,30 +85,34 @@ export class Backend extends EventEmitter {
     listen<string>("event", (res) => {
       const payload = JSON.parse(res.payload) as ServiceStateAction;
       // console.log("Received event ", payload);
-      if (this.serviceDispatcher) {
-        this.serviceDispatcher(payload);
-      } else {
-        console.log("Putting it in queue because we don't have a dispatcher");
-        this.serviceActionsQueue.push(payload);
-      }
+      this.dispatchEvent(payload);
+    });
+    
+    this.getPortOptions().then((value) => {
+      this.serviceDispatcher!({ type: "PORT_OPTIONS", value });
     });
 
-    this.hasInitComplete = false;
-    listen<string>("init-complete", (res) => {
-      console.log("Received init complete");
-      this.hasInitComplete = true;
-      this.emit("init-complete");
+    this.getConnectedDevices().then((value) => {
+      this.serviceDispatcher!({ type: "FOUND_DEVICES", value });
     });
   }
+
+  dispatchEvent = (action: ServiceStateAction) => {
+    if (this.serviceDispatcher) {
+      this.serviceDispatcher(action);
+    } else {
+      console.log("Putting it in queue because we don't have a dispatcher");
+      this.serviceActionsQueue.push(action);
+    }
+  };
 
   setSettingsDispatcher(dispatch: SettingsDispatch) {
     if (!this.settingsDispatcher) {
       this.settingsDispatcher = dispatch;
-      this.onInitComplete(() => {
-        this.requestConfig().then((settings) => {
-          console.log("requested ", settings);
-          dispatch({ type: "INIT", value: settings });
-        });
+
+      this.requestConfig().then((settings) => {
+        console.log("requested ", settings);
+        dispatch({ type: "INIT", value: settings });
       });
     } else {
       this.settingsDispatcher = dispatch;
@@ -116,9 +120,6 @@ export class Backend extends EventEmitter {
   }
 
   setServiceDispatcher(dispatch: ServiceStateDispatch) {
-    // if (!this.serviceDispatcher) {
-    //   this.settingsDispatcher = dispatch;
-    // } else {
     this.serviceDispatcher = dispatch;
     if (this.serviceActionsQueue.length > 0) {
       this.serviceActionsQueue.forEach((element) => {
@@ -126,11 +127,14 @@ export class Backend extends EventEmitter {
       });
       this.serviceActionsQueue = [];
     }
-    // }
   }
 
   async getPortOptions(): Promise<PortOptions> {
     return callAppFunction("get_port_options");
+  }
+
+  async getConnectedDevices(): Promise<DeviceInfo[]> {
+    return callAppFunction("get_connected_devices");
   }
 
   async selectPort(option: number): Promise<PortOptions> {
@@ -148,15 +152,6 @@ export class Backend extends EventEmitter {
     return callAppFunction("update_config", {
       config: settings,
     });
-  }
-
-  onInitComplete(cb: () => void) {
-    // This is to ensure that the callback gets retroactively called if it gets added after the init complete event has already happened
-    if (this.hasInitComplete) {
-      cb();
-    } else {
-      this.once("init-complete", cb);
-    }
   }
 }
 

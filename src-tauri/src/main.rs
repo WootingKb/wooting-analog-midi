@@ -23,13 +23,12 @@ use wooting_analog_midi_core::{
 };
 mod settings;
 use anyhow::{Context, Result};
+use flume::{Receiver, Sender};
 use serde::Serialize;
 use settings::AppSettings;
 use std::collections::HashMap;
-use std::sync::mpsc::channel;
-use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
-use tauri::{Menu, MenuItem};
+use tauri::{Manager, Menu, MenuItem, Submenu};
 
 // This defines the rate at which midi updates are sent to the UI
 pub const MIDI_UPDATE_RATE: u32 = 30; //Hz
@@ -60,6 +59,7 @@ struct App {
   midi_service: Arc<RwLock<MidiService>>,
   running: Arc<AtomicBool>,
   last_save: Option<Instant>,
+  event_receiver: Option<flume::Receiver<AppEvent>>,
 }
 
 impl App {
@@ -70,10 +70,11 @@ impl App {
       midi_service: Arc::new(RwLock::new(MidiService::new())),
       running: Arc::new(AtomicBool::new(true)),
       last_save: None,
+      event_receiver: None,
     }
   }
 
-  fn init(&mut self) -> Result<Receiver<AppEvent>> {
+  fn init(&mut self) -> Result<()> {
     self.settings = AppSettings::load_config().context("Failed to load App Settings")?;
     {
       let mut midi = self.midi_service.write().unwrap();
@@ -87,43 +88,44 @@ impl App {
 
     let mut has_devices: bool = device_count > 0;
 
-    let (tx, rx) = channel::<AppEvent>();
+    let (tx, rx) = flume::unbounded::<AppEvent>();
 
     let running_inner = self.running.clone();
     let midi_service_inner = self.midi_service.clone();
     let tx_inner = tx.clone();
+
     self.thread_pool.push(thread::spawn(move || {
       let mut iter_count: u32 = 0;
-      if has_devices {
-        let devices = midi_service_inner
-          .read()
-          .unwrap()
-          .get_connected_devices()
-          .context("Failed to get connected devices")
-          .map_err(output_err)
-          .unwrap_or(vec![]);
-        if let Err(e) = tx_inner
-          .send(AppEvent::FoundDevices(devices))
-          .context("Error when sending FoundDevices event!")
-        {
-          output_err(e);
-        }
-      }
+      // if has_devices {
+      //   let devices = midi_service_inner
+      //     .read()
+      //     .unwrap()
+      //     .get_connected_devices()
+      //     .context("Failed to get connected devices")
+      //     .map_err(output_err)
+      //     .unwrap_or(vec![]);
+      //   if let Err(e) = tx_inner
+      //     .send(AppEvent::FoundDevices(devices))
+      //     .context("Error when sending FoundDevices event!")
+      //   {
+      //     output_err(e);
+      //   }
+      // }
 
-      if let Err(e) = tx_inner
-        .send(AppEvent::PortOptions(
-          midi_service_inner
-            .read()
-            .unwrap()
-            .port_options
-            .as_ref()
-            .cloned()
-            .expect("There should be at least some port options"),
-        ))
-        .context("Error when sending FoundDevices event!")
-      {
-        output_err(e);
-      }
+      // if let Err(e) = tx_inner
+      //   .send(AppEvent::PortOptions(
+      //     midi_service_inner
+      //       .read()
+      //       .unwrap()
+      //       .port_options
+      //       .as_ref()
+      //       .cloned()
+      //       .expect("There should be at least some port options"),
+      //   ))
+      //   .context("Error when sending FoundDevices event!")
+      // {
+      //   output_err(e);
+      // }
 
       while running_inner.load(Ordering::SeqCst) {
         let mut errored = false;
@@ -155,6 +157,7 @@ impl App {
         }
 
         if !errored {
+          // This should be replaced with a handler for the device disconnected/connected events to dynamically update the UI
           if !has_devices {
             let devices = midi_service_inner
               .read()
@@ -213,9 +216,15 @@ impl App {
       }
     }));
 
-    // self.event_sender = Some(tx);
+    self.event_receiver = Some(rx);
+    Ok(())
+  }
 
-    Ok(rx)
+  fn listen(&mut self) -> Result<Receiver<AppEvent>> {
+    self
+      .event_receiver
+      .clone()
+      .ok_or_else(|| anyhow!("Failed to retrieve event listener"))
   }
 
   fn update_config(&mut self, config: AppSettings) {
@@ -250,6 +259,17 @@ impl App {
       .port_options
       .as_ref()
       .cloned()
+      .unwrap_or(vec![])
+  }
+
+  fn get_connected_devices(&self) -> Vec<DeviceInfo> {
+    self
+      .midi_service
+      .read()
+      .unwrap()
+      .get_connected_devices()
+      .context("Failed to get connected devices")
+      .map_err(output_err)
       .unwrap_or(vec![])
   }
 
@@ -366,44 +386,86 @@ fn get_port_options() -> Vec<PortOption> {
 }
 
 #[tauri::command]
+fn get_connected_devices() -> Vec<DeviceInfo> {
+  APP.write().unwrap().get_connected_devices()
+}
+
+#[tauri::command]
 fn select_port(option: usize) -> Result<Vec<PortOption>, CommandError> {
   Ok(APP.write().unwrap().select_port(option)?)
+}
+
+fn main_menu() -> Menu {
+  let app_menu = Menu::new()
+    .add_native_item(MenuItem::Hide)
+    .add_native_item(MenuItem::HideOthers)
+    .add_native_item(MenuItem::ShowAll)
+    .add_native_item(MenuItem::Separator)
+    .add_native_item(MenuItem::Quit);
+  let edit_menu = Menu::new()
+    .add_native_item(MenuItem::Undo)
+    .add_native_item(MenuItem::Copy)
+    .add_native_item(MenuItem::Cut)
+    .add_native_item(MenuItem::Paste)
+    .add_native_item(MenuItem::Separator)
+    .add_native_item(MenuItem::Redo)
+    .add_native_item(MenuItem::SelectAll);
+  Menu::new()
+    .add_submenu(Submenu::new("Wooting Analog Midi", app_menu))
+    .add_submenu(Submenu::new("Edit", edit_menu))
 }
 
 fn main() -> Result<()> {
   if let Err(e) = env_logger::try_init() {
     warn!("Failed to init env_logger, {}", e);
   }
-  let menu = Menu::new().add_native_item(MenuItem::Quit);
 
-  tauri::Builder::default().menu(menu).on_page_load(move |window, _payload| {
-      let event_receiver = {
-        match APP.write().unwrap().init() {
-          Ok(recv) => recv,
-          Err(e) => {
-            let message = format!("{}.\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
-            error!("{}", message);
-            tauri::api::dialog::message(Some(&window), "Fatal error occured on initialisation!", message);
-            panic!("{}", e);
-          }
-        }
-      };
+  if let Err(e) = APP.write().unwrap().init() {
+    let message = format!("{}.\n\nPlease make sure you have all the dependencies installed correctly including the Analog SDK!", e);
+    error!("{}", message);
+
+    msgbox::create("Error Occured", &message, msgbox::IconType::Error)?;
+
+    panic!("{}", e);
+  }
+
+  tauri::Builder::default()
+    .menu(main_menu())
+    .invoke_handler(tauri::generate_handler![
+      get_config,
+      update_config,
+      get_port_options,
+      select_port,
+      get_connected_devices
+    ])
+    .setup(|app| {
+      #[cfg(debug_assertions)]
+      app.get_window("main").unwrap().open_devtools();
+
+      Ok(())
+    })
+    .on_page_load(move |window, _payload| {
+      let event_receiver = APP
+        .write()
+        .unwrap()
+        .listen()
+        .expect("Failed to listen to app events");
 
       let window_inner = window.clone();
       APP.write().unwrap().exec_loop(move || {
-        if let Ok(event) = event_receiver
-          .recv()
-          // .map_err(|err| warn!("Error on event reciever: {}", err))
-        {
-          window_inner.emit(&"event".to_string(), Some(serde_json::to_string(&event).expect("Failed to serialize event"))).expect("Failed to emit event");
-
+        if let Ok(event) = event_receiver.recv() {
+          window_inner
+            .emit(
+              "event",
+              Some(serde_json::to_string(&event).expect("Failed to serialize event")),
+            )
+            .expect("Failed to emit event");
         }
       });
-
-      window.emit::<Option<()>>(&"init-complete".to_string(), None).expect("Failed to emit init complete event");
     })
-    .invoke_handler(tauri::generate_handler![get_config, update_config, get_port_options, select_port])
-    .run(tauri::generate_context!()).unwrap();
+    .run(tauri::generate_context!())
+    .unwrap();
+
   trace!("After run");
   APP.write().unwrap().uninit();
   trace!("Uninit");

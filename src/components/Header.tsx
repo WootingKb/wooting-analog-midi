@@ -29,7 +29,7 @@ export function Header() {
     <HStack justifyContent="space-between">
       <Text>
         {devices.length > 0
-          ? `Device '${devices[0].device_name}' is connected, you're all set!`
+          ? `Connected Devices: ${devices.map((d) => d.device_name).join(", ")}`
           : "No compatible devices could be found!"}
       </Text>
       <HStack>
