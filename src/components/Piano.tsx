@@ -88,6 +88,8 @@ export function PianoBody() {
 
   useEffect(() => {
     function cancelKeyEvent(e: KeyboardEvent) {
+      // Don't catch Command + Q which is used for quitting
+      if (e.code === "KeyQ" && e.metaKey) return;
       e.preventDefault();
     }
 

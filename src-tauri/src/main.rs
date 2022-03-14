@@ -7,8 +7,7 @@ extern crate env_logger;
 extern crate wooting_analog_midi_core;
 #[macro_use]
 extern crate lazy_static;
-// #[macro_use]
-// extern crate crossbeam_channel;
+
 #[allow(unused_imports)]
 #[macro_use]
 extern crate anyhow;
@@ -23,7 +22,7 @@ use wooting_analog_midi_core::{
 };
 mod settings;
 use anyhow::{Context, Result};
-use flume::{Receiver, Sender};
+use flume::Receiver;
 use serde::Serialize;
 use settings::AppSettings;
 use std::collections::HashMap;
