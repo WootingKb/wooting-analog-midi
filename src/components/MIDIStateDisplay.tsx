@@ -94,12 +94,9 @@ const KeyNoteVelocityVisualise = React.memo(
               const id = `n${noteEntry.note}`;
               const velocity = noteEntry.velocity;
               return (
-                <>
-                  <label key={id + "l"}>
-                    {midiNumberToNote(noteEntry.note)}
-                  </label>
+                <React.Fragment key={id}>
+                  <label>{midiNumberToNote(noteEntry.note)}</label>
                   <NoteVelocityMeter
-                    key={id + "m"}
                     style={{
                       backgroundImage: `linear-gradient(
                       to right,
@@ -112,7 +109,7 @@ const KeyNoteVelocityVisualise = React.memo(
                   >
                     <AnalogThresholdIndicator threshold={props.maxVelocity} />
                   </NoteVelocityMeter>
-                </>
+                </React.Fragment>
               );
             })}
           </>
@@ -136,8 +133,9 @@ function usePrevious<T>(value: T): T | undefined {
 
 export function MIDIStateDisplay() {
   const midiState = useMidiState();
-  const [activeEntry, setActiveEntry] =
-    useState<[string, MidiUpdateEntry] | undefined>();
+  const [activeEntry, setActiveEntry] = useState<
+    [string, MidiUpdateEntry] | undefined
+  >();
   const previousEntry = usePrevious(activeEntry);
   const [maxVelocity, setMaxVelocity] = useState(0);
 
