@@ -24,13 +24,11 @@
       "shortDescription": "Wooting Virtual MIDI device",
       "longDescription": "Experimental virtual MIDI device for Analog keyboards!",
       "deb": {
-        "depends": ["libasound2"],
-        "useBootstrapper": false
+        "depends": ["libasound2"]
       },
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "",
-        "useBootstrapper": false,
         "exceptionDomain": "",
         "signingIdentity": null,
         "entitlements": null
