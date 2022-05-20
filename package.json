@@ -22,7 +22,7 @@
     "@types/react-dom": "^16.9.0",
     "core-js": "^3.4.4",
     "framer-motion": "^4",
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.21",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "react-piano": "^3.1.3",
