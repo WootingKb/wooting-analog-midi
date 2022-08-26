@@ -3,10 +3,8 @@ import React from "react";
 //@ts-ignore
 import { Piano } from "react-piano";
 import "react-piano/dist/styles.css";
-import styled from "styled-components";
 import { MidiEntry, MIDI_NOTE_MAX, MIDI_NOTE_MIN } from "../backend";
 import { HIDCodes } from "../HidCodes";
-
 // import { midiNumberToNote } from "../utils/notes";
 
 export interface MidiDataEntry {
@@ -14,25 +12,6 @@ export interface MidiDataEntry {
   value: number;
   note: MidiEntry;
 }
-
-const NoteVelocityMeter = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  height: 100%;
-  background-size: contain;
-`;
-
-const NoteKeybind = styled.small<{ isAccidental: boolean }>`
-  color: ${(props) => (props.isAccidental ? "#f8e8d5" : "#888")};
-  font-size: 12px;
-  text-align: center;
-  text-transform: capitalize;
-  /* Disable text selection */
-  user-select: none;
-  margin-bottom: 3px;
-`;
 
 interface Props {
   midiData: MidiDataEntry[];
@@ -73,19 +52,31 @@ export const PianoDisplay = React.memo((props: Props) => {
             }
           >
             {args.keyboardShortcut ? (
-              <NoteVelocityMeter
-                style={{
-                  backgroundImage: `linear-gradient(
+              <Box
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                justifyContent="flex-end"
+                height="100%"
+                backgroundSize="contain"
+                backgroundImage={`linear-gradient(
             #f28f69 ${velocity * 100}%,
             rgba(0, 0, 0, 0) ${velocity * 100}%
-          )`,
-                }}
+          )`}
               >
-                {/* <NoteKeybind {...args}>
-              {midiNumberToNote(args.midiNumber)}
-            </NoteKeybind> */}
-                <NoteKeybind {...args}>{args.keyboardShortcut}</NoteKeybind>
-              </NoteVelocityMeter>
+                <Box
+                  color={args.isAccidental ? "#f8e8d5" : "#888"}
+                  fontSize="12px"
+                  textAlign="center"
+                  textTransform="capitalize"
+                  /* Disable text selection */
+                  userSelect="none"
+                  marginBottom="3px"
+                >
+                  {args.keyboardShortcut}
+                  {/* {midiNumberToNote(args.midiNumber)} */}
+                </Box>
+              </Box>
             ) : null}
           </Box>
         );

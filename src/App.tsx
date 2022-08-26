@@ -1,31 +1,21 @@
 import "core-js";
 import React from "react";
-import styled from "styled-components";
 import { PianoBody } from "./components/Piano";
 import { MIDIStateDisplay } from "./components/MIDIStateDisplay";
 import { Settings } from "./components/Settings";
 import { Header } from "./components/Header";
-
-const AppRoot = styled.div`
-  padding: 1em;
-`;
-
-const Body = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
+import { Box, Flex } from "@chakra-ui/react";
 
 function App() {
   return (
-    <AppRoot>
+    <Box p="1em">
       <Header />
-      <Body>
+      <Flex direction="column" align="center">
         <PianoBody />
-      </Body>
+      </Flex>
       <Settings />
       <MIDIStateDisplay />
-    </AppRoot>
+    </Box>
   );
 }
 

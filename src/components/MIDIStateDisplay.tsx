@@ -1,52 +1,30 @@
 import { useColorModeValue } from "@chakra-ui/color-mode";
+import { Box, chakra, Grid } from "@chakra-ui/react";
 import _ from "lodash";
 import { floor } from "lodash";
 import React, { useEffect, useRef, useState } from "react";
-import styled from "styled-components";
 import { MidiUpdateEntry } from "../backend";
 import { HIDCodes } from "../HidCodes";
 import { useSettingsState } from "../settings-context";
 import { useMidiState } from "../state-context";
 import { midiNumberToNote } from "../utils/notes";
 
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: 5em 5em auto;
-`;
-
-const AnalogKeyMeter = styled.div`
-  width: 50%;
-  height: 1em;
-`;
-
-const NoteVelocityMeter = styled.div`
-  width: 40%;
-  height: 0.5em;
-  align-self: center;
-`;
-
-const AnalogThresholdIndicator = styled.div<{ threshold: number }>`
-  width: 3px;
-  background-color: lightblue;
-  left: ${(props) => floor(props.threshold * 100)}%;
-  height: 100%;
-  position: relative;
-`;
-
-interface KeyEntryProps {
-  index: number;
-  noChildren: number;
-}
-
-const KeyLabel = styled.label<KeyEntryProps>`
-  grid-row: ${(props) => props.index + 1} / span
-    ${(props) => props.noChildren + 1};
-`;
-
 interface Props {
   activeKey: string;
   entry: MidiUpdateEntry;
   maxVelocity: number;
+}
+
+function AnalogThresholdIndicator(props: { threshold: number }) {
+  return (
+    <Box
+      width="3px"
+      backgroundColor="lightblue"
+      left={`${floor(props.threshold * 100)}%`}
+      height="100%"
+      position="relative"
+    />
+  );
 }
 
 const KeyNoteVelocityVisualise = React.memo(
@@ -58,23 +36,25 @@ const KeyNoteVelocityVisualise = React.memo(
     const meterBgColor = useColorModeValue("gray", "black");
     return (
       <>
-        <Grid>
+        <Grid gridTemplateColumns="5em 5em auto">
           <p>Key</p>
           <p>Note</p>
           <p>Value</p>
           <>
-            <KeyLabel
+            <chakra.label
               index={1}
               noChildren={entry.notes?.length ?? 0}
+              gridRow={`2 / span ${(entry.notes?.length ?? 0) + 1}`}
               htmlFor={key}
             >
               {HIDCodes[parseInt(key)]}
-            </KeyLabel>
+            </chakra.label>
             <div />
-            <AnalogKeyMeter
+            <Box
               key={key + "m"}
-              style={{
-                backgroundImage: `linear-gradient(
+              width="50%"
+              height="1em"
+              backgroundImage={`linear-gradient(
                       to right,
                   ${
                     value < appSettings.note_config.threshold
@@ -83,32 +63,32 @@ const KeyNoteVelocityVisualise = React.memo(
                     // : `rgb(${(1 - value) * 255}, ${value * 255},0)`
                   } ${value * 100}%,
                   ${meterBgColor} ${value * 100}%
-                )`,
-              }}
+                )`}
             >
               <AnalogThresholdIndicator
                 threshold={appSettings.note_config.threshold}
               />
-            </AnalogKeyMeter>
+            </Box>
             {(entry.notes ?? []).map((noteEntry) => {
               const id = `n${noteEntry.note}`;
               const velocity = noteEntry.velocity;
               return (
                 <React.Fragment key={id}>
                   <label>{midiNumberToNote(noteEntry.note)}</label>
-                  <NoteVelocityMeter
-                    style={{
-                      backgroundImage: `linear-gradient(
-                      to right,
-                      rgb(${(1 - velocity) * 255}, ${velocity * 255},0) ${
-                        velocity * 100
-                      }%,
-                      ${meterBgColor} ${velocity * 100}%
-                )`,
-                    }}
+                  <Box
+                    w="40%"
+                    h="0.5em"
+                    alignSelf="center"
+                    backgroundImage={`linear-gradient(
+                    to right,
+                    rgb(${(1 - velocity) * 255}, ${velocity * 255},0) ${
+                      velocity * 100
+                    }%,
+                    ${meterBgColor} ${velocity * 100}%
+              )`}
                   >
                     <AnalogThresholdIndicator threshold={props.maxVelocity} />
-                  </NoteVelocityMeter>
+                  </Box>
                 </React.Fragment>
               );
             })}
