@@ -13,7 +13,7 @@ interface Props {
   midiState: MidiUpdate;
 }
 
-let stopBindingTimeoutHandle: number | null = null;
+let stopBindingTimeoutHandle: NodeJS.Timeout | null = null;
 
 export function Piano(props: Props) {
   // Track if the mouse is pressed so we can avoid playNote triggering with keys
