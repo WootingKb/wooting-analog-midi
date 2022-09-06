@@ -1,6 +1,6 @@
 [package]
 name = "wooting-analog-midi"
-version = "0.2.1"
+version = "0.2.2"
 description = "Virtual MIDI input for Analog keyboards!"
 authors = [ "simon-wh", "PastaJ36" ]
 license = "MPL-2.0"
