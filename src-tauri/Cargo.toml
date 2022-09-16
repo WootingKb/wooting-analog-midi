@@ -21,7 +21,7 @@ flume = "0.10"
 msgbox = "0.7"
 
   [dependencies.tauri]
-  version = "1.0.5"
+  version = "1.0.6"
   features = ["api-all", "devtools"]
 
 [build-dependencies]
