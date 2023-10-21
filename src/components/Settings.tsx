@@ -68,7 +68,6 @@ export function Settings() {
         <Text>Velocity Scale</Text>
 
         <NumberInput
-          type="number"
           value={appSettings.note_config.velocity_scale}
           onChange={(_, value) => {
             if (!isNaN(value) && value !== appSettings.shift_amount) {
