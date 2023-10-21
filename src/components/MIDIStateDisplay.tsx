@@ -42,12 +42,10 @@ const KeyNoteVelocityVisualise = React.memo(
           <p>Value</p>
           <>
             <chakra.label
-              index={1}
-              noChildren={entry.notes?.length ?? 0}
               gridRow={`2 / span ${(entry.notes?.length ?? 0) + 1}`}
               htmlFor={key}
             >
-              {HIDCodes[parseInt(key)]}
+              {entry.notes?.length ?? HIDCodes[parseInt(key)]}
             </chakra.label>
             <div />
             <Box
