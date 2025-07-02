@@ -330,11 +330,6 @@ pub struct MidiService {
     pub note_config: NoteConfig,
 }
 
-//TODO: Determine if this is safe (LUL imagine saying it may be safe when it literally says unsafe) or a different solution is required
-// Tbf haven't ran into any issues yet, so might be okay
-unsafe impl Send for MidiService {}
-unsafe impl Sync for MidiService {}
-
 impl MidiService {
     pub fn new() -> Self {
         MidiService {
