@@ -83,9 +83,7 @@ impl App {
       midi.amount_to_shift = self.settings.shift_amount;
     }
 
-    let device_count = self.midi_service.write().unwrap().init()?;
-
-    let mut has_devices: bool = device_count > 0;
+    let mut device_count = self.midi_service.write().unwrap().init()? as usize;
 
     let (tx, rx) = flume::unbounded::<AppEvent>();
 
@@ -137,9 +135,8 @@ impl App {
             errored = true;
             match e.root_cause().downcast_ref::<WootingAnalogResult>() {
               Some(WootingAnalogResult::NoDevices) => {
-                if has_devices {
-                  has_devices = false;
-                  warn!("{}", WootingAnalogResult::NoDevices);
+                if device_count != 0 {
+                  device_count = 0;
                   if let Err(e) = tx_inner
                     .send(AppEvent::NoDevices)
                     .context("Error when sending NoDevices event!")
@@ -156,22 +153,23 @@ impl App {
         }
 
         if !errored {
-          // This should be replaced with a handler for the device disconnected/connected events to dynamically update the UI
-          if !has_devices {
-            let devices = midi_service_inner
-              .read()
-              .unwrap()
-              .get_connected_devices()
-              .context("Failed to get connected devices")
-              .map_err(output_err)
-              .unwrap_or(vec![]);
+          // This should be replaced with a handler for the device disconnected/connected events
+          let devices = midi_service_inner
+            .read()
+            .unwrap()
+            .get_connected_devices()
+            .context("Failed to get connected devices")
+            .map_err(output_err)
+            .unwrap_or(vec![]);
+          let devices_len = devices.len();
+          if device_count != devices_len {
             if let Err(e) = tx_inner
               .send(AppEvent::FoundDevices(devices))
               .context("Error when sending FoundDevices event!")
             {
               output_err(e);
             } else {
-              has_devices = true;
+              device_count = devices_len;
             }
           }
 
