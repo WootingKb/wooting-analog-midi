@@ -105,6 +105,9 @@ Then you should be able to run the application in development mode, which includ
 yarn tauri dev
 ```
 
+> [!note]
+>On Windows, this command may fail, in which case you should run `SET NODE_OPTIONS=--openssl-legacy-provider` and then `yarn tauri dev` again.
+
 If you want to build a distributable binary/package run:
 
 ```bash
